@@ -15,13 +15,9 @@ const Navbar = () => {
   };
 
   const navLinks = {
-    user: [{ to: '/dashboard', label: 'My Complaints' }],
-    staff: [{ to: '/staff', label: 'Staff Panel' }],
-    admin: [
-      { to: '/admin', label: 'Dashboard' },
-      { to: '/admin/complaints', label: 'All Complaints' },
-      { to: '/admin/users', label: 'Users' },
-    ],
+    user:  [{ to: '/dashboard', label: 'My Complaints' }],
+    staff: [{ to: '/staff',     label: 'Staff Panel'   }],
+    admin: [], // AdminDashboard has its own Overview / All Complaints / Users tabs
   };
 
   const links = user ? (navLinks[user.role] || []) : [];

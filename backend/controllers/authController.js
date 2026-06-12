@@ -26,7 +26,9 @@ const register = async (req, res, next) => {
       return res.status(409).json({ success: false, message: 'Email already registered' });
     }
 
-    const allowedRole = ['user', 'staff', 'admin'].includes(role) ? role : 'user';
+    // Security: public registration can NEVER create admin accounts.
+    // 'admin' sent from the client is silently downgraded to 'user'.
+    const allowedRole = role === 'staff' ? 'staff' : 'user';
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
@@ -242,4 +244,52 @@ const getStaffMembers = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, getProfile, updateProfile, getAllUsers, updateUser, getStaffMembers };
+// ─────────────────────────────────────────────
+// @route  POST /api/auth/create-admin
+// @access Private/Admin — the ONLY way to create an admin account
+// ─────────────────────────────────────────────
+const createAdmin = async (req, res, next) => {
+  try {
+    const { name, email, password, department } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: 'Name, email, and password are required' });
+    }
+
+    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+    if (existing) {
+      return res.status(409).json({ success: false, message: 'Email already registered' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    const ts = now();
+
+    const result = db.prepare(`
+      INSERT INTO users (name, email, password, role, department, createdAt, updatedAt)
+      VALUES (?, ?, ?, 'admin', ?, ?, ?)
+    `).run(name, email, hashedPassword, department || '', ts, ts);
+
+    const userId = result.lastInsertRowid;
+
+    db.prepare(`
+      INSERT INTO notifications (recipient, title, message, type, createdAt)
+      VALUES (?, ?, ?, 'general', ?)
+    `).run(
+      userId,
+      'Admin Account Created',
+      `Admin account for ${name} was created by ${req.user.name}.`,
+      now()
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: 'Admin account created successfully',
+      user: { _id: userId, name, email, role: 'admin', department: department || '' },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { register, login, getProfile, updateProfile, getAllUsers, updateUser, getStaffMembers, createAdmin };
