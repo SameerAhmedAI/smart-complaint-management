@@ -48,6 +48,7 @@ const AdminDashboard = () => {
   const [assigning, setAssigning] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState('');
   const [deletingId, setDeletingId] = useState(null);
+  const [updatingStatusId, setUpdatingStatusId] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -130,6 +131,23 @@ const AdminDashboard = () => {
       toast.error('Delete failed');
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleStatusUpdate = async (complaintId, newStatus) => {
+    setUpdatingStatusId(complaintId);
+    try {
+      await api.put(`/complaints/${complaintId}/status`, { status: newStatus });
+      toast.success(`Status updated to "${newStatus}"`);
+      // Optimistically update local state so UI reflects change instantly
+      setAllComplaints((prev) =>
+        prev.map((c) => (c._id === complaintId ? { ...c, status: newStatus } : c))
+      );
+      fetchDashboard();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Status update failed');
+    } finally {
+      setUpdatingStatusId(null);
     }
   };
 
@@ -396,9 +414,18 @@ const AdminDashboard = () => {
                           </span>
                         </td>
                         <td className="px-5 py-3">
-                          <span className={`text-xs px-2 py-1 rounded-full border ${statusConfig[c.status]?.bg} ${statusConfig[c.status]?.color} ${statusConfig[c.status]?.border}`}>
-                            {statusConfig[c.status]?.label}
-                          </span>
+                          <select
+                            value={c.status}
+                            disabled={updatingStatusId === c._id}
+                            onChange={(e) => handleStatusUpdate(c._id, e.target.value)}
+                            className={`text-xs px-2 py-1.5 rounded-lg border bg-gray-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-wait
+                              ${statusConfig[c.status]?.border} ${statusConfig[c.status]?.color}`}
+                          >
+                            <option value="pending">⏳ Pending</option>
+                            <option value="in-progress">🔄 In Progress</option>
+                            <option value="resolved">✅ Resolved</option>
+                            <option value="rejected">❌ Rejected</option>
+                          </select>
                         </td>
                         <td className="px-5 py-3 text-gray-500 text-xs">{formatDate(c.createdAt)}</td>
                         <td className="px-5 py-3">
