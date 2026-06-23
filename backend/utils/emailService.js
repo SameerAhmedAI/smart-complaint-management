@@ -1,30 +1,38 @@
-const nodemailer = require('nodemailer');
+// Email sending disabled for development - uncomment nodemailer code below to re-enable
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+// const nodemailer = require('nodemailer');
+
+// const transporter = nodemailer.createTransport({
+//   service: 'gmail',
+//   auth: {
+//     user: process.env.EMAIL_USER,
+//     pass: process.env.EMAIL_PASS,
+//   },
+// });
+
+const nodemailer = require('nodemailer'); // kept to avoid import errors if re-enabled
 
 /**
  * Send an email notification
  * @param {Object} options - { to, subject, html }
  */
 const sendEmail = async ({ to, subject, html }) => {
-  try {
-    await transporter.sendMail({
-      from: `"Smart Complaint System" <${process.env.EMAIL_USER}>`,
-      to,
-      subject,
-      html,
-    });
-    console.log(`📧 Email sent to ${to}`);
-  } catch (error) {
-    console.error(`❌ Email failed to ${to}:`, error.message);
-    // Non-blocking — don't throw, just log
-  }
+  // Email sending disabled for development - uncomment nodemailer code below to re-enable
+  console.log(`📧 [EMAIL DISABLED] Would send to: ${to}, Subject: ${subject}`);
+
+  // --- Nodemailer sending code (re-enable for production) ---
+  // try {
+  //   await transporter.sendMail({
+  //     from: `"Smart Complaint System" <${process.env.EMAIL_USER}>`,
+  //     to,
+  //     subject,
+  //     html,
+  //   });
+  //   console.log(`📧 Email sent to ${to}`);
+  // } catch (error) {
+  //   console.error(`❌ Email failed to ${to}:`, error.message);
+  //   // Non-blocking — don't throw, just log
+  // }
 };
 
 /**
