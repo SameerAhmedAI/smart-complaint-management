@@ -1,7 +1,8 @@
-// Helper to check if text contains a keyword as a whole word/phrase
+// Helper to check if text contains a keyword as a whole word/phrase (including plural/singular)
 const hasWholeWord = (text, keyword) => {
-  const escapedKeyword = keyword.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-  const regex = new RegExp(`\\b${escapedKeyword}\\b`, 'i');
+  const escapedKeyword = keyword.toLowerCase().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+  // Allow optional plural suffix (s or es) at word boundaries
+  const regex = new RegExp(`\\b${escapedKeyword}(?:es|s)?\\b`, 'i');
   return regex.test(text);
 };
 
@@ -26,29 +27,43 @@ const keywordFallback = (title, description) => {
       department: 'Human Resources',
     },
     {
-      keywords: ['room', 'building', 'facility', 'lab', 'maintenance', 'washroom', 'bathroom', 'toilet', 'clean', 'cleaning', 'hygiene', 'furniture', 'chair', 'desk', 'ac', 'air conditioning', 'electricity', 'plumbing', 'water', 'leak'],
+      keywords: ['room', 'building', 'facility', 'lab', 'maintenance', 'washroom', 'bathroom', 'toilet', 'clean', 'cleaning', 'hygiene', 'furniture', 'chair', 'desk', 'ac', 'air conditioning', 'electricity', 'plumbing', 'water', 'leak', 'projector', 'equipment', 'broken', 'damaged', 'repair', 'fix', 'classroom', 'ceiling', 'light', 'fan', 'heater', 'cooler'],
       category: 'Facilities',
       department: 'Facilities Management',
     },
     {
-      keywords: ['class', 'exam', 'grade', 'course', 'academic', 'lecture', 'assignment', 'result', 'semester', 'transcript'],
+      keywords: ['class', 'exam', 'grade', 'course', 'academic', 'lecture', 'assignment', 'result', 'semester', 'transcript', 'syllabus', 'teacher', 'professor', 'homework', 'marks', 'gpa', 'attendance sheet', 'timetable', 'schedule'],
       category: 'Academic',
       department: 'Academic Affairs',
     },
   ];
 
+  let bestRule = null;
+  let maxMatches = 0;
+
   for (const rule of rules) {
-    if (rule.keywords.some((kw) => hasWholeWord(text, kw))) {
-      const urgentWords = ['urgent', 'critical', 'immediately', 'emergency', 'asap', 'severe', 'danger'];
-      const priority = urgentWords.some((w) => hasWholeWord(text, w)) ? 'High' : 'Medium';
-      return {
-        category: rule.category,
-        priority,
-        suggestedDepartment: rule.department,
-        sentiment: 'neutral',
-        summary: `[Auto-classified] ${rule.category} complaint — AI unavailable. Keyword-based classification applied.`,
-      };
+    let matchCount = 0;
+    for (const kw of rule.keywords) {
+      if (hasWholeWord(text, kw)) {
+        matchCount++;
+      }
     }
+    if (matchCount > maxMatches) {
+      maxMatches = matchCount;
+      bestRule = rule;
+    }
+  }
+
+  if (bestRule && maxMatches > 0) {
+    const urgentWords = ['urgent', 'critical', 'immediately', 'emergency', 'asap', 'severe', 'danger'];
+    const priority = urgentWords.some((w) => hasWholeWord(text, w)) ? 'High' : 'Medium';
+    return {
+      category: bestRule.category,
+      priority,
+      suggestedDepartment: bestRule.department,
+      sentiment: 'neutral',
+      summary: `[Auto-classified] ${bestRule.category} complaint — AI unavailable. Keyword-based classification applied (${maxMatches} keyword matches).`,
+    };
   }
 
   return {
