@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
@@ -39,6 +39,9 @@ const StaffPanel = () => {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const LIMIT = 8;
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchDebounceRef = useRef(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -60,6 +63,33 @@ const StaffPanel = () => {
   }, [filter, page]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Derive client-side filtered list by applying the debounced keyword
+  const filteredComplaints = searchQuery
+    ? complaints.filter((c) => {
+        const q = searchQuery.toLowerCase();
+        return (
+          c.title?.toLowerCase().includes(q) ||
+          c.description?.toLowerCase().includes(q) ||
+          c.submittedBy?.name?.toLowerCase().includes(q)
+        );
+      })
+    : complaints;
+
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setSearchInput(val);
+    clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      setSearchQuery(val.trim());
+    }, 300);
+  };
+
+  const clearSearch = () => {
+    setSearchInput('');
+    setSearchQuery('');
+    clearTimeout(searchDebounceRef.current);
+  };
 
   const openDetail = (complaint) => {
     setSelectedComplaint(complaint);
@@ -233,6 +263,33 @@ const StaffPanel = () => {
           </div>
         )}
 
+        {/* Search Bar */}
+        <div className="relative mb-4">
+          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+            </svg>
+          </div>
+          <input
+            type="text"
+            value={searchInput}
+            onChange={handleSearchChange}
+            placeholder="Search by title, description, or submitter…"
+            className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-9 pr-9 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+          />
+          {searchInput && (
+            <button
+              onClick={clearSearch}
+              className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-white transition-colors"
+              aria-label="Clear search"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+
         {/* Filter Tabs */}
         <div className="flex gap-2 mb-6 flex-wrap">
           {['all', 'pending', 'in-progress', 'resolved', 'rejected'].map((f) => (
@@ -249,15 +306,21 @@ const StaffPanel = () => {
         </div>
 
         {/* Complaints */}
-        {complaints.length === 0 ? (
+        {filteredComplaints.length === 0 ? (
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-12 text-center">
-            <div className="text-5xl mb-4">📭</div>
-            <h3 className="text-white font-medium mb-2">No complaints assigned</h3>
-            <p className="text-gray-400 text-sm">Complaints assigned to you will appear here.</p>
+            <div className="text-5xl mb-4">{searchQuery ? '🔍' : '💭'}</div>
+            <h3 className="text-white font-medium mb-2">
+              {searchQuery ? 'No complaints found' : 'No complaints assigned'}
+            </h3>
+            <p className="text-gray-400 text-sm">
+              {searchQuery
+                ? <>No results for &ldquo;<span className="text-gray-300">{searchQuery}</span>&rdquo;</>           
+                : 'Complaints assigned to you will appear here.'}
+            </p>
           </div>
         ) : (
           <div className="space-y-3">
-            {complaints.map((c) => (
+            {filteredComplaints.map((c) => (
               <div
                 key={c._id}
                 onClick={() => openDetail(c)}

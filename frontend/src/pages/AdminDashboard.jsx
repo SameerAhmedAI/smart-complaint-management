@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import {
@@ -53,6 +53,9 @@ const AdminDashboard = () => {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const LIMIT = 10;
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchDebounceRef = useRef(null);
 
   const fetchDashboard = useCallback(async () => {
     try {
@@ -78,6 +81,33 @@ const AdminDashboard = () => {
       toast.error('Failed to load complaints');
     }
   }, [page, statusFilter]);
+
+  // Derive client-side filtered list by applying the debounced keyword
+  const filteredComplaints = searchQuery
+    ? allComplaints.filter((c) => {
+        const q = searchQuery.toLowerCase();
+        return (
+          c.title?.toLowerCase().includes(q) ||
+          c.description?.toLowerCase().includes(q) ||
+          c.submittedBy?.name?.toLowerCase().includes(q)
+        );
+      })
+    : allComplaints;
+
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setSearchInput(val);
+    clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      setSearchQuery(val.trim());
+    }, 300);
+  };
+
+  const clearSearch = () => {
+    setSearchInput('');
+    setSearchQuery('');
+    clearTimeout(searchDebounceRef.current);
+  };
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -367,6 +397,33 @@ const AdminDashboard = () => {
               </div>
             )}
 
+            {/* Search Bar */}
+            <div className="relative mb-4">
+              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                value={searchInput}
+                onChange={handleSearchChange}
+                placeholder="Search by title, description, or submitter…"
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-9 pr-9 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-red-500 transition-colors"
+              />
+              {searchInput && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-white transition-colors"
+                  aria-label="Clear search"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
             {/* Status Filter */}
             <div className="flex gap-2 mb-6 flex-wrap">
               {['all', 'pending', 'in-progress', 'resolved', 'rejected'].map((f) => (
@@ -398,7 +455,7 @@ const AdminDashboard = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {allComplaints.map((c) => (
+                    {filteredComplaints.map((c) => (
                       <tr key={c._id} className="border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors">
                         <td className="px-5 py-3">
                           <p className="text-white font-medium max-w-[200px] truncate">{c.title}</p>
@@ -449,9 +506,15 @@ const AdminDashboard = () => {
                     ))}
                   </tbody>
                 </table>
-                {allComplaints.length === 0 && (
+                {filteredComplaints.length === 0 && (
                   <div className="py-12 text-center">
-                    <p className="text-gray-500">No complaints found</p>
+                    <div className="text-4xl mb-3">🔍</div>
+                    <p className="text-gray-400 font-medium">No complaints found</p>
+                    {searchQuery && (
+                      <p className="text-gray-500 text-sm mt-1">
+                        No results for &ldquo;<span className="text-gray-300">{searchQuery}</span>&rdquo;
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
