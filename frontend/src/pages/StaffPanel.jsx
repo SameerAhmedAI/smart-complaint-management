@@ -3,30 +3,70 @@ import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 
+/* ── Status / Priority configs ───────────────────────── */
 const statusConfig = {
-  pending:       { label: 'Pending',     color: 'text-amber-400',   bg: 'bg-amber-400/10',   border: 'border-amber-400/30'   },
-  'in-progress': { label: 'In Progress', color: 'text-blue-400',    bg: 'bg-blue-400/10',    border: 'border-blue-400/30'    },
-  resolved:      { label: 'Resolved',    color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/30' },
-  rejected:      { label: 'Rejected',    color: 'text-red-400',     bg: 'bg-red-400/10',     border: 'border-red-400/30'     },
+  pending:       { label: 'PENDING',     stampClass: 'stamp stamp-pending',  topBorder: 'var(--accent-pending)'  },
+  'in-progress': { label: 'IN PROGRESS', stampClass: 'stamp stamp-progress', topBorder: 'var(--accent-progress)' },
+  resolved:      { label: 'RESOLVED',    stampClass: 'stamp stamp-resolved', topBorder: 'var(--accent-resolved)' },
+  rejected:      { label: 'REJECTED',    stampClass: 'stamp stamp-rejected', topBorder: 'var(--accent-rejected)' },
 };
 
 const priorityConfig = {
-  low:      { color: 'text-gray-400',   bg: 'bg-gray-400/10'   },
-  medium:   { color: 'text-yellow-400', bg: 'bg-yellow-400/10' },
-  high:     { color: 'text-orange-400', bg: 'bg-orange-400/10' },
-  critical: { color: 'text-red-400',    bg: 'bg-red-400/10'    },
+  low:      { stampClass: 'stamp stamp-neutral'  },
+  medium:   { stampClass: 'stamp stamp-pending'  },
+  high:     { stampClass: 'stamp stamp-progress' },
+  critical: { stampClass: 'stamp stamp-critical' },
 };
 
-const StatCard = ({ label, value, icon, colorClass }) => (
-  <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex items-center gap-4">
-    <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl ${colorClass}`}>{icon}</div>
-    <div>
-      <p className="text-gray-400 text-xs uppercase tracking-wide">{label}</p>
-      <p className="text-2xl font-bold text-white">{value}</p>
-    </div>
+/* ── Stat Card ────────────────────────────────────────── */
+const StatCard = ({ label, value, topColor }) => (
+  <div style={{
+    background: 'var(--bg-surface)',
+    border: '1px solid var(--border-subtle)',
+    borderTop: `4px solid ${topColor}`,
+    borderRadius: 'var(--radius-md)',
+    padding: '16px 18px',
+  }}>
+    <p style={{
+      fontFamily: 'var(--font-mono)',
+      fontSize: '10px',
+      fontWeight: 600,
+      letterSpacing: '0.1em',
+      textTransform: 'uppercase',
+      color: 'var(--text-muted)',
+      marginBottom: '8px',
+    }}>{label}</p>
+    <p style={{
+      fontFamily: 'var(--font-mono)',
+      fontSize: '32px',
+      fontWeight: 600,
+      color: topColor,
+      lineHeight: 1,
+    }}>{value ?? '—'}</p>
   </div>
 );
 
+/* ── Case Reference Generator ─────────────────────────── */
+const caseRef = (id) => {
+  const idStr = String(id ?? '');
+  return `CASE-${idStr.padStart(4, '0')}`;
+};
+
+/* ── Form field style ─────────────────────────────────── */
+const fieldStyle = {
+  width: '100%',
+  background: 'var(--bg-elevated)',
+  border: '1px solid var(--border-strong)',
+  borderRadius: 'var(--radius-md)',
+  padding: '9px 12px',
+  color: 'var(--text-primary)',
+  fontFamily: 'var(--font-body)',
+  fontSize: '13px',
+  outline: 'none',
+  boxSizing: 'border-box',
+};
+
+/* ── StaffPanel ────────────────────────────────────────── */
 const StaffPanel = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState(null);
@@ -64,7 +104,6 @@ const StaffPanel = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Derive client-side filtered list by applying the debounced keyword
   const filteredComplaints = searchQuery
     ? complaints.filter((c) => {
         const q = searchQuery.toLowerCase();
@@ -80,9 +119,7 @@ const StaffPanel = () => {
     const val = e.target.value;
     setSearchInput(val);
     clearTimeout(searchDebounceRef.current);
-    searchDebounceRef.current = setTimeout(() => {
-      setSearchQuery(val.trim());
-    }, 300);
+    searchDebounceRef.current = setTimeout(() => setSearchQuery(val.trim()), 300);
   };
 
   const clearSearch = () => {
@@ -116,99 +153,142 @@ const StaffPanel = () => {
 
   if (loading && !stats) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      <div style={{ minHeight: '100vh', background: 'var(--bg-base)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 28, height: 28, border: '2px solid var(--border-strong)', borderTop: '2px solid var(--accent-progress)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-white">Staff Panel</h1>
-          <p className="text-gray-400 text-sm mt-1">Manage your assigned complaints, {user?.name}</p>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
+      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '32px 16px' }}>
+
+        {/* ── Page Header ── */}
+        <div style={{ marginBottom: '28px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+              STAFF OPERATIONS
+            </span>
+            <span style={{ width: 32, height: '1px', background: 'var(--border-strong)' }} />
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)' }}>{user?.email}</span>
+          </div>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '22px', color: 'var(--text-primary)', margin: 0 }}>
+            Case Assignment Ledger
+          </h1>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+            Assigned cases for {user?.name}
+          </p>
         </div>
 
-        {/* Stats */}
+        {/* ── Stat Cards ── */}
         {stats && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <StatCard label="Total Assigned" value={stats.assignedTotal} icon="📋" colorClass="bg-indigo-500/10" />
-            <StatCard label="Pending" value={stats.assignedPending} icon="⏳" colorClass="bg-amber-500/10" />
-            <StatCard label="In Progress" value={stats.assignedInProgress} icon="🔄" colorClass="bg-blue-500/10" />
-            <StatCard label="Resolved" value={stats.assignedResolved} icon="✅" colorClass="bg-emerald-500/10" />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
+            <StatCard label="Total Assigned" value={stats.assignedTotal}      topColor="var(--text-muted)" />
+            <StatCard label="Pending"        value={stats.assignedPending}    topColor="var(--accent-pending)" />
+            <StatCard label="In Progress"    value={stats.assignedInProgress} topColor="var(--accent-progress)" />
+            <StatCard label="Resolved"       value={stats.assignedResolved}   topColor="var(--accent-resolved)" />
           </div>
         )}
 
-        {/* Resolution Rate */}
+        {/* ── Resolution Rate ── */}
         {stats && (
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mb-8">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-gray-400">Resolution Rate</p>
-              <p className="text-white font-bold text-lg">{stats.resolutionRate}%</p>
+          <div style={{
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-md)',
+            padding: '14px 18px',
+            marginBottom: '24px',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.1em' }}>RESOLUTION RATE</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', fontWeight: 600, color: 'var(--accent-resolved)' }}>{stats.resolutionRate}%</span>
             </div>
-            <div className="w-full bg-gray-800 rounded-full h-2">
-              <div
-                className="bg-gradient-to-r from-indigo-500 to-emerald-500 h-2 rounded-full transition-all"
-                style={{ width: `${stats.resolutionRate}%` }}
-              />
+            <div style={{ width: '100%', height: '4px', background: 'var(--bg-elevated)', borderRadius: '2px' }}>
+              <div style={{
+                height: '4px',
+                borderRadius: '2px',
+                background: `linear-gradient(to right, var(--accent-progress), var(--accent-resolved))`,
+                width: `${stats.resolutionRate}%`,
+                transition: 'width 0.6s ease',
+              }} />
             </div>
           </div>
         )}
 
-        {/* Complaint Update Modal */}
+        {/* ── Update Modal ── */}
         {selectedComplaint && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
-              <div className="flex justify-between items-start mb-4">
-                <h2 className="text-lg font-semibold text-white pr-4">{selectedComplaint.title}</h2>
-                <button onClick={() => setSelectedComplaint(null)} className="text-gray-500 hover:text-white p-1">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+            <div style={{
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-strong)',
+              borderTop: `4px solid ${statusConfig[selectedComplaint.status]?.topBorder || 'var(--border-strong)'}`,
+              borderRadius: 'var(--radius-lg)',
+              padding: '24px',
+              width: '100%',
+              maxWidth: '640px',
+              maxHeight: '85vh',
+              overflowY: 'auto',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                <div>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
+                    {caseRef(selectedComplaint._id)}
+                  </span>
+                  <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: '17px', color: 'var(--text-primary)', margin: 0 }}>
+                    {selectedComplaint.title}
+                  </h2>
+                </div>
+                <button onClick={() => setSelectedComplaint(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               </div>
 
-              <div className="space-y-3 mb-5">
-                <div className="flex gap-2 flex-wrap">
-                  <span className={`text-xs px-2.5 py-1 rounded-full border ${statusConfig[selectedComplaint.status]?.bg} ${statusConfig[selectedComplaint.status]?.color} ${statusConfig[selectedComplaint.status]?.border}`}>
-                    {statusConfig[selectedComplaint.status]?.label}
-                  </span>
-                  <span className={`text-xs px-2.5 py-1 rounded-full ${priorityConfig[selectedComplaint.priority]?.bg} ${priorityConfig[selectedComplaint.priority]?.color}`}>
-                    {selectedComplaint.priority}
-                  </span>
-                  <span className="text-xs px-2.5 py-1 rounded-full bg-gray-800 text-gray-300">
-                    {selectedComplaint.category}
-                  </span>
-                </div>
-
-                <div className="bg-gray-800 rounded-xl p-3">
-                  <p className="text-xs text-gray-400 mb-1">Submitted by</p>
-                  <p className="text-white text-sm">{selectedComplaint.submittedBy?.name} — <span className="text-gray-400">{selectedComplaint.submittedBy?.email}</span></p>
-                </div>
-
-                <p className="text-gray-300 text-sm leading-relaxed">{selectedComplaint.description}</p>
-
-                {selectedComplaint.aiAnalysis?.summary && (
-                  <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3">
-                    <p className="text-xs text-indigo-400 font-semibold mb-1">🤖 AI Summary</p>
-                    <p className="text-indigo-300 text-sm">{selectedComplaint.aiAnalysis.summary}</p>
-                    <p className="text-indigo-400 text-xs mt-1">Dept: {selectedComplaint.aiAnalysis.suggestedDepartment} | Sentiment: {selectedComplaint.aiAnalysis.sentiment}</p>
-                  </div>
-                )}
+              {/* Tags */}
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                <span className={statusConfig[selectedComplaint.status]?.stampClass || 'stamp stamp-neutral'}>
+                  {statusConfig[selectedComplaint.status]?.label}
+                </span>
+                <span className={priorityConfig[selectedComplaint.priority]?.stampClass || 'stamp stamp-neutral'}>
+                  {selectedComplaint.priority?.toUpperCase()} PRI
+                </span>
+                <span className="stamp stamp-neutral">{selectedComplaint.category}</span>
               </div>
 
-              {/* Update Form */}
-              <div className="border-t border-gray-800 pt-5 space-y-4">
-                <h3 className="text-sm font-semibold text-white">Update Status</h3>
+              {/* Submitted by */}
+              <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '10px 12px', marginBottom: '12px' }}>
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)' }}>
+                  SUBMITTED BY → <span style={{ color: 'var(--text-primary)' }}>{selectedComplaint.submittedBy?.name}</span>
+                  <span style={{ color: 'var(--text-secondary)' }}> · {selectedComplaint.submittedBy?.email}</span>
+                </p>
+              </div>
+
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '12px' }}>
+                {selectedComplaint.description}
+              </p>
+
+              {selectedComplaint.aiAnalysis?.summary && (
+                <div style={{ background: 'color-mix(in srgb, var(--accent-progress) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-progress) 25%, transparent)', borderRadius: 'var(--radius-md)', padding: '12px', marginBottom: '16px' }}>
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600, color: 'var(--accent-progress)', letterSpacing: '0.08em', marginBottom: '6px' }}>◈ AI SUMMARY</p>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>{selectedComplaint.aiAnalysis.summary}</p>
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--accent-progress)' }}>
+                    DEPT → {selectedComplaint.aiAnalysis.suggestedDepartment} · SENTIMENT → {selectedComplaint.aiAnalysis.sentiment}
+                  </p>
+                </div>
+              )}
+
+              {/* ── Update Form ── */}
+              <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.1em', margin: 0 }}>
+                  UPDATE CASE STATUS
+                </p>
 
                 <div>
-                  <label className="block text-xs text-gray-400 mb-1.5">New Status</label>
+                  <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: '6px' }}>NEW STATUS</label>
                   <select
                     value={statusForm.status}
                     onChange={(e) => setStatusForm((p) => ({ ...p, status: e.target.value }))}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 text-sm"
+                    style={fieldStyle}
                   >
                     <option value="pending">Pending</option>
                     <option value="in-progress">In Progress</option>
@@ -218,44 +298,72 @@ const StaffPanel = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs text-gray-400 mb-1.5">Resolution / Note</label>
+                  <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: '6px' }}>RESOLUTION / NOTE</label>
                   <textarea
                     value={statusForm.resolution}
                     onChange={(e) => setStatusForm((p) => ({ ...p, resolution: e.target.value }))}
                     placeholder="Describe the resolution or add a note..."
                     rows={3}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 text-sm resize-none"
+                    style={{ ...fieldStyle, resize: 'none' }}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs text-gray-400 mb-1.5">Internal Note (optional)</label>
+                  <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: '6px' }}>INTERNAL NOTE (OPTIONAL)</label>
                   <input
                     value={statusForm.note}
                     onChange={(e) => setStatusForm((p) => ({ ...p, note: e.target.value }))}
                     placeholder="Internal note for history..."
-                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 text-sm"
+                    style={fieldStyle}
                   />
                 </div>
 
-                <div className="flex gap-3">
+                <div style={{ display: 'flex', gap: '10px' }}>
                   <button
                     onClick={() => setSelectedComplaint(null)}
-                    className="flex-1 px-4 py-2.5 rounded-xl border border-gray-700 text-gray-400 hover:text-white text-sm font-medium transition-all"
+                    style={{
+                      flex: 1,
+                      padding: '9px',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-strong)',
+                      background: 'transparent',
+                      color: 'var(--text-secondary)',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      letterSpacing: '0.06em',
+                      cursor: 'pointer',
+                    }}
                   >
-                    Cancel
+                    CANCEL
                   </button>
                   <button
                     onClick={handleUpdateStatus}
                     disabled={updating}
-                    className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
+                    style={{
+                      flex: 1,
+                      padding: '9px',
+                      borderRadius: 'var(--radius-md)',
+                      border: 'none',
+                      background: updating ? 'color-mix(in srgb, var(--accent-progress) 50%, transparent)' : 'var(--accent-progress)',
+                      color: '#fff',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      letterSpacing: '0.06em',
+                      cursor: updating ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                    }}
                   >
                     {updating ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Updating...
+                        <div style={{ width: 12, height: 12, border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                        UPDATING…
                       </>
-                    ) : 'Update Status'}
+                    ) : 'SAVE UPDATE'}
                   </button>
                 </div>
               </div>
@@ -263,11 +371,11 @@ const StaffPanel = () => {
           </div>
         )}
 
-        {/* Search Bar */}
-        <div className="relative mb-4">
-          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+        {/* ── Search Bar ── */}
+        <div style={{ position: 'relative', marginBottom: '12px' }}>
+          <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
             </svg>
           </div>
           <input
@@ -275,107 +383,181 @@ const StaffPanel = () => {
             value={searchInput}
             onChange={handleSearchChange}
             placeholder="Search by title, description, or submitter…"
-            className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-9 pr-9 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+            style={{
+              ...fieldStyle,
+              paddingLeft: '36px',
+              paddingRight: searchInput ? '36px' : '12px',
+            }}
           />
           {searchInput && (
-            <button
-              onClick={clearSearch}
-              className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-white transition-colors"
-              aria-label="Clear search"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+            <button onClick={clearSearch} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0 }} aria-label="Clear search">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           )}
         </div>
 
-        {/* Filter Tabs */}
-        <div className="flex gap-2 mb-6 flex-wrap">
-          {['all', 'pending', 'in-progress', 'resolved', 'rejected'].map((f) => (
-            <button
-              key={f}
-              onClick={() => { setFilter(f); setPage(1); }}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                filter === f ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700'
-              }`}
-            >
-              {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1).replace('-', ' ')}
-            </button>
-          ))}
+        {/* ── Filter Tabs ── */}
+        <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', flexWrap: 'wrap' }}>
+          {['all', 'pending', 'in-progress', 'resolved', 'rejected'].map((f) => {
+            const active = filter === f;
+            return (
+              <button
+                key={f}
+                onClick={() => { setFilter(f); setPage(1); }}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: 'var(--radius-md)',
+                  border: `1px solid ${active ? 'var(--accent-progress)' : 'var(--border-subtle)'}`,
+                  background: active ? 'color-mix(in srgb, var(--accent-progress) 12%, transparent)' : 'var(--bg-surface)',
+                  color: active ? 'var(--accent-progress)' : 'var(--text-secondary)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  letterSpacing: '0.08em',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {f === 'all' ? 'ALL' : f.toUpperCase().replace('-', ' ')}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Complaints */}
+        {/* ── Complaints Ledger ── */}
         {filteredComplaints.length === 0 ? (
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-12 text-center">
-            <div className="text-5xl mb-4">{searchQuery ? '🔍' : '💭'}</div>
-            <h3 className="text-white font-medium mb-2">
-              {searchQuery ? 'No complaints found' : 'No complaints assigned'}
-            </h3>
-            <p className="text-gray-400 text-sm">
+          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '48px', textAlign: 'center' }}>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: '8px' }}>
+              {searchQuery ? 'NO MATCHING RECORDS' : 'NO CASES ASSIGNED'}
+            </p>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
               {searchQuery
-                ? <>No results for &ldquo;<span className="text-gray-300">{searchQuery}</span>&rdquo;</>           
+                ? <>No results for &ldquo;<span style={{ color: 'var(--text-primary)' }}>{searchQuery}</span>&rdquo;</>
                 : 'Complaints assigned to you will appear here.'}
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {filteredComplaints.map((c) => (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            {/* Ledger header */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '110px 1fr 140px auto',
+              gap: '16px',
+              padding: '8px 16px',
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-sm) var(--radius-sm) 0 0',
+            }}>
+              {['REF NO.', 'CASE DESCRIPTION', 'SUBMITTER', 'STATUS / DATE'].map((col) => (
+                <span key={col} style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.1em', fontWeight: 600 }}>{col}</span>
+              ))}
+            </div>
+
+            {filteredComplaints.map((c, idx) => (
               <div
                 key={c._id}
                 onClick={() => openDetail(c)}
-                className="bg-gray-900 border border-gray-800 hover:border-gray-700 rounded-2xl p-5 cursor-pointer transition-all group"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '110px 1fr 140px auto',
+                  gap: '16px',
+                  alignItems: 'center',
+                  padding: '14px 16px',
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderTop: idx === 0 ? '1px solid var(--border-subtle)' : 'none',
+                  borderRadius: idx === filteredComplaints.length - 1 ? '0 0 var(--radius-sm) var(--radius-sm)' : '0',
+                  cursor: 'pointer',
+                  transition: 'background 0.12s',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-elevated)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'var(--bg-surface)'}
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-white font-medium text-sm group-hover:text-blue-400 transition-colors truncate">
-                      {c.title}
-                    </h3>
-                    <p className="text-gray-400 text-xs mt-1 line-clamp-2">{c.description}</p>
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium border ${statusConfig[c.status]?.bg} ${statusConfig[c.status]?.color} ${statusConfig[c.status]?.border}`}>
-                        {statusConfig[c.status]?.label}
-                      </span>
-                      <span className={`text-xs px-2.5 py-1 rounded-full ${priorityConfig[c.priority]?.bg} ${priorityConfig[c.priority]?.color}`}>
-                        {c.priority}
-                      </span>
-                      <span className="text-xs px-2.5 py-1 rounded-full bg-gray-800 text-gray-300">{c.category}</span>
-                    </div>
-                    {c.submittedBy && (
-                      <p className="text-gray-500 text-xs mt-2">By: {c.submittedBy.name}</p>
-                    )}
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>
+                  {caseRef(c._id)}
+                </span>
+
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)', margin: '0 0 3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {c.title}
+                  </p>
+                  <p style={{ fontFamily: 'var(--font-body)', fontSize: '12px', color: 'var(--text-secondary)', margin: '0 0 8px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical' }}>
+                    {c.description}
+                  </p>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <span className={priorityConfig[c.priority]?.stampClass || 'stamp stamp-neutral'}>
+                      {c.priority?.toUpperCase()} PRI
+                    </span>
+                    <span className="stamp stamp-neutral">{c.category}</span>
                   </div>
-                  <div className="flex-shrink-0 text-right">
-                    <p className="text-gray-500 text-xs">{formatDate(c.createdAt)}</p>
-                    <p className="text-blue-400 text-xs mt-2 group-hover:underline">Update →</p>
-                  </div>
+                </div>
+
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {c.submittedBy?.name}
+                  </p>
+                </div>
+
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <span className={statusConfig[c.status]?.stampClass || 'stamp stamp-neutral'} style={{ display: 'inline-flex', marginBottom: '6px' }}>
+                    {statusConfig[c.status]?.label}
+                  </span>
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', margin: 0 }}>
+                    {formatDate(c.createdAt).toUpperCase()}
+                  </p>
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--accent-progress)', margin: '3px 0 0', cursor: 'pointer' }}>
+                    UPDATE →
+                  </p>
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        {/* Pagination */}
+        {/* ── Pagination ── */}
         {total > LIMIT && (
-          <div className="flex items-center justify-center gap-3 mt-6">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginTop: '20px' }}>
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-4 py-2 rounded-lg bg-gray-800 text-gray-400 hover:text-white disabled:opacity-40 text-sm"
+              style={{
+                padding: '6px 14px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+                color: page === 1 ? 'var(--text-muted)' : 'var(--text-secondary)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '11px',
+                cursor: page === 1 ? 'not-allowed' : 'pointer',
+                opacity: page === 1 ? 0.4 : 1,
+              }}
             >
-              ← Prev
+              ← PREV
             </button>
-            <span className="text-gray-400 text-sm">Page {page} of {Math.ceil(total / LIMIT)}</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)' }}>
+              PG {page} / {Math.ceil(total / LIMIT)}
+            </span>
             <button
               onClick={() => setPage((p) => p + 1)}
               disabled={page * LIMIT >= total}
-              className="px-4 py-2 rounded-lg bg-gray-800 text-gray-400 hover:text-white disabled:opacity-40 text-sm"
+              style={{
+                padding: '6px 14px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+                color: page * LIMIT >= total ? 'var(--text-muted)' : 'var(--text-secondary)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '11px',
+                cursor: page * LIMIT >= total ? 'not-allowed' : 'pointer',
+                opacity: page * LIMIT >= total ? 0.4 : 1,
+              }}
             >
-              Next →
+              NEXT →
             </button>
           </div>
         )}
       </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 };

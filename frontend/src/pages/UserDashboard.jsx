@@ -4,30 +4,56 @@ import api from '../utils/api';
 import toast from 'react-hot-toast';
 import ComplaintForm from '../components/ComplaintForm';
 
+/* ── Status / Priority configs ───────────────────────── */
 const statusConfig = {
-  pending:     { label: 'Pending',     color: 'text-amber-400',   bg: 'bg-amber-400/10',   border: 'border-amber-400/20'   },
-  'in-progress': { label: 'In Progress', color: 'text-blue-400',  bg: 'bg-blue-400/10',    border: 'border-blue-400/20'    },
-  resolved:    { label: 'Resolved',    color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/20' },
-  rejected:    { label: 'Rejected',    color: 'text-red-400',     bg: 'bg-red-400/10',     border: 'border-red-400/20'     },
+  pending:       { label: 'PENDING',     stampClass: 'stamp stamp-pending',  topBorder: 'var(--accent-pending)'  },
+  'in-progress': { label: 'IN PROGRESS', stampClass: 'stamp stamp-progress', topBorder: 'var(--accent-progress)' },
+  resolved:      { label: 'RESOLVED',    stampClass: 'stamp stamp-resolved', topBorder: 'var(--accent-resolved)' },
+  rejected:      { label: 'REJECTED',    stampClass: 'stamp stamp-rejected', topBorder: 'var(--accent-rejected)' },
 };
 
 const priorityConfig = {
-  low:      { color: 'text-gray-400',    bg: 'bg-gray-400/10'    },
-  medium:   { color: 'text-yellow-400',  bg: 'bg-yellow-400/10'  },
-  high:     { color: 'text-orange-400',  bg: 'bg-orange-400/10'  },
-  critical: { color: 'text-red-400',     bg: 'bg-red-400/10'     },
+  low:      { stampClass: 'stamp stamp-neutral'  },
+  medium:   { stampClass: 'stamp stamp-pending'  },
+  high:     { stampClass: 'stamp stamp-progress' },
+  critical: { stampClass: 'stamp stamp-critical' },
 };
 
-const StatCard = ({ label, value, icon, color }) => (
-  <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex items-center gap-4">
-    <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${color}`}>{icon}</div>
-    <div>
-      <p className="text-gray-400 text-xs uppercase tracking-wide">{label}</p>
-      <p className="text-2xl font-bold text-white mt-0.5">{value}</p>
-    </div>
+/* ── Stat Card ────────────────────────────────────────── */
+const StatCard = ({ label, value, topColor }) => (
+  <div style={{
+    background: 'var(--bg-surface)',
+    border: '1px solid var(--border-subtle)',
+    borderTop: `4px solid ${topColor}`,
+    borderRadius: 'var(--radius-md)',
+    padding: '16px 18px',
+  }}>
+    <p style={{
+      fontFamily: 'var(--font-mono)',
+      fontSize: '10px',
+      fontWeight: 600,
+      letterSpacing: '0.1em',
+      textTransform: 'uppercase',
+      color: 'var(--text-muted)',
+      marginBottom: '8px',
+    }}>{label}</p>
+    <p style={{
+      fontFamily: 'var(--font-mono)',
+      fontSize: '32px',
+      fontWeight: 600,
+      color: topColor,
+      lineHeight: 1,
+    }}>{value ?? '—'}</p>
   </div>
 );
 
+/* ── Case Reference Generator ─────────────────────────── */
+const caseRef = (id) => {
+  const idStr = String(id ?? '');
+  return `CASE-${idStr.padStart(4, '0')}`;
+};
+
+/* ── UserDashboard ────────────────────────────────────── */
 const UserDashboard = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState(null);
@@ -60,9 +86,7 @@ const UserDashboard = () => {
     }
   }, [selectedFilter, page]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleComplaintSubmitted = () => {
     setShowForm(false);
@@ -74,202 +98,379 @@ const UserDashboard = () => {
 
   if (loading && !stats) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+      <div style={{ minHeight: '100vh', background: 'var(--bg-base)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 28, height: 28, border: '2px solid var(--border-strong)', borderTop: '2px solid var(--accent-progress)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
       </div>
     );
   }
 
+  const filters = ['all', 'pending', 'in-progress', 'resolved', 'rejected'];
+
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+    <div style={{ minHeight: '100vh', background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
+      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '32px 16px' }}>
+
+        {/* ── Page Header ── */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '28px' }}>
           <div>
-            <h1 className="text-2xl font-bold text-white">My Dashboard</h1>
-            <p className="text-gray-400 text-sm mt-1">Welcome back, {user?.name} 👋</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+              <span style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '10px',
+                color: 'var(--text-muted)',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+              }}>
+                CITIZEN PORTAL
+              </span>
+              <span style={{ width: 32, height: '1px', background: 'var(--border-strong)' }} />
+              <span style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '10px',
+                color: 'var(--text-muted)',
+                letterSpacing: '0.06em',
+              }}>
+                {user?.email}
+              </span>
+            </div>
+            <h1 style={{
+              fontFamily: 'var(--font-heading)',
+              fontWeight: 700,
+              fontSize: '22px',
+              color: 'var(--text-primary)',
+              margin: 0,
+            }}>
+              Case File Registry
+            </h1>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+              Welcome back, {user?.name}
+            </p>
           </div>
           <button
             id="new-complaint-btn"
             onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-indigo-500/20 text-sm"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'var(--accent-progress)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 'var(--radius-md)',
+              padding: '9px 16px',
+              fontSize: '13px',
+              fontWeight: 600,
+              fontFamily: 'var(--font-heading)',
+              cursor: 'pointer',
+              letterSpacing: '0.02em',
+              transition: 'opacity 0.15s',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.opacity = '0.85'}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
-            New Complaint
+            FILE NEW COMPLAINT
           </button>
         </div>
 
-        {/* Stat Cards */}
+        {/* ── Stat Cards ── */}
         {stats && (
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-            <StatCard label="Total" value={stats.userTotal} icon="📋" color="bg-indigo-500/10" />
-            <StatCard label="Pending" value={stats.userPending} icon="⏳" color="bg-amber-500/10" />
-            <StatCard label="In Progress" value={stats.userInProgress} icon="🔄" color="bg-blue-500/10" />
-            <StatCard label="Resolved" value={stats.userResolved} icon="✅" color="bg-emerald-500/10" />
-            <StatCard label="Rejected" value={stats.userRejected} icon="❌" color="bg-red-500/10" />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '28px' }}>
+            <StatCard label="Total Filed"   value={stats.userTotal}      topColor="var(--text-muted)" />
+            <StatCard label="Pending"       value={stats.userPending}    topColor="var(--accent-pending)" />
+            <StatCard label="In Progress"   value={stats.userInProgress} topColor="var(--accent-progress)" />
+            <StatCard label="Resolved"      value={stats.userResolved}   topColor="var(--accent-resolved)" />
+            <StatCard label="Rejected"      value={stats.userRejected}   topColor="var(--accent-rejected)" />
           </div>
         )}
 
-        {/* New Complaint Form Modal */}
+        {/* ── New Complaint Modal ── */}
         {showForm && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <ComplaintForm
-              onSuccess={handleComplaintSubmitted}
-              onClose={() => setShowForm(false)}
-            />
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+            <ComplaintForm onSuccess={handleComplaintSubmitted} onClose={() => setShowForm(false)} />
           </div>
         )}
 
-        {/* Complaint Detail Modal */}
+        {/* ── Complaint Detail Modal ── */}
         {selectedComplaint && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
-              <div className="flex justify-between items-start mb-4">
-                <h2 className="text-lg font-semibold text-white pr-4">{selectedComplaint.title}</h2>
-                <button onClick={() => setSelectedComplaint(null)} className="text-gray-500 hover:text-white p-1">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+            <div style={{
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-strong)',
+              borderTop: `4px solid ${statusConfig[selectedComplaint.status]?.topBorder || 'var(--border-strong)'}`,
+              borderRadius: 'var(--radius-lg)',
+              padding: '24px',
+              width: '100%',
+              maxWidth: '640px',
+              maxHeight: '82vh',
+              overflowY: 'auto',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                <div>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
+                    {caseRef(selectedComplaint._id)}
+                  </span>
+                  <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: '17px', color: 'var(--text-primary)', margin: 0 }}>
+                    {selectedComplaint.title}
+                  </h2>
+                </div>
+                <button onClick={() => setSelectedComplaint(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               </div>
 
-              <div className="flex flex-wrap gap-2 mb-4">
-                <span className={`text-xs px-2.5 py-1 rounded-full font-medium border ${statusConfig[selectedComplaint.status]?.bg} ${statusConfig[selectedComplaint.status]?.color} ${statusConfig[selectedComplaint.status]?.border}`}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '16px' }}>
+                <span className={statusConfig[selectedComplaint.status]?.stampClass || 'stamp stamp-neutral'}>
                   {statusConfig[selectedComplaint.status]?.label}
                 </span>
-                <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${priorityConfig[selectedComplaint.priority]?.bg} ${priorityConfig[selectedComplaint.priority]?.color}`}>
-                  {selectedComplaint.priority?.toUpperCase()} Priority
+                <span className={priorityConfig[selectedComplaint.priority]?.stampClass || 'stamp stamp-neutral'}>
+                  {selectedComplaint.priority?.toUpperCase()} PRI
                 </span>
-                <span className="text-xs px-2.5 py-1 rounded-full bg-gray-800 text-gray-300">
-                  {selectedComplaint.category}
-                </span>
+                <span className="stamp stamp-neutral">{selectedComplaint.category}</span>
               </div>
 
-              <p className="text-gray-300 text-sm leading-relaxed mb-4">{selectedComplaint.description}</p>
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '16px' }}>
+                {selectedComplaint.description}
+              </p>
 
               {selectedComplaint.aiAnalysis?.summary && (
-                <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4 mb-4">
-                  <p className="text-xs font-semibold text-indigo-400 mb-1">🤖 AI Analysis</p>
-                  <p className="text-indigo-300 text-sm">{selectedComplaint.aiAnalysis.summary}</p>
-                  <p className="text-indigo-400 text-xs mt-1">Suggested Dept: {selectedComplaint.aiAnalysis.suggestedDepartment}</p>
+                <div style={{ background: 'color-mix(in srgb, var(--accent-progress) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-progress) 25%, transparent)', borderRadius: 'var(--radius-md)', padding: '12px', marginBottom: '12px' }}>
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600, color: 'var(--accent-progress)', letterSpacing: '0.08em', marginBottom: '6px' }}>◈ AI ANALYSIS</p>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{selectedComplaint.aiAnalysis.summary}</p>
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--accent-progress)', marginTop: '4px' }}>
+                    DEPT → {selectedComplaint.aiAnalysis.suggestedDepartment}
+                  </p>
                 </div>
               )}
 
               {selectedComplaint.assignedTo && (
-                <div className="bg-gray-800 rounded-xl p-3 mb-4">
-                  <p className="text-xs text-gray-400">Assigned to: <span className="text-white font-medium">{selectedComplaint.assignedTo.name}</span>
-                    {selectedComplaint.assignedTo.department && ` — ${selectedComplaint.assignedTo.department}`}
+                <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '10px 12px', marginBottom: '12px' }}>
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)' }}>
+                    ASSIGNED → <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{selectedComplaint.assignedTo.name}</span>
+                    {selectedComplaint.assignedTo.department && ` · ${selectedComplaint.assignedTo.department}`}
                   </p>
                 </div>
               )}
 
               {selectedComplaint.resolution && (
-                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
-                  <p className="text-xs font-semibold text-emerald-400 mb-1">Resolution</p>
-                  <p className="text-emerald-300 text-sm">{selectedComplaint.resolution}</p>
+                <div style={{ background: 'color-mix(in srgb, var(--accent-resolved) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-resolved) 25%, transparent)', borderRadius: 'var(--radius-md)', padding: '12px' }}>
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600, color: 'var(--accent-resolved)', letterSpacing: '0.08em', marginBottom: '6px' }}>◈ RESOLUTION</p>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{selectedComplaint.resolution}</p>
                 </div>
               )}
 
-              <p className="text-gray-600 text-xs mt-4">Submitted {formatDate(selectedComplaint.createdAt)}</p>
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)', marginTop: '16px' }}>
+                FILED {formatDate(selectedComplaint.createdAt).toUpperCase()}
+              </p>
             </div>
           </div>
         )}
 
-        {/* Filter Tabs */}
-        <div className="flex gap-2 mb-6 flex-wrap">
-          {['all', 'pending', 'in-progress', 'resolved', 'rejected'].map((f) => (
-            <button
-              key={f}
-              onClick={() => { setSelectedFilter(f); setPage(1); }}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                selectedFilter === f
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700'
-              }`}
-            >
-              {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1).replace('-', ' ')}
-            </button>
-          ))}
+        {/* ── Filter Tabs ── */}
+        <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', flexWrap: 'wrap' }}>
+          {filters.map((f) => {
+            const active = selectedFilter === f;
+            const label = f === 'all' ? 'ALL' : f.toUpperCase().replace('-', ' ');
+            return (
+              <button
+                key={f}
+                onClick={() => { setSelectedFilter(f); setPage(1); }}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: 'var(--radius-md)',
+                  border: `1px solid ${active ? 'var(--accent-progress)' : 'var(--border-subtle)'}`,
+                  background: active ? 'color-mix(in srgb, var(--accent-progress) 12%, transparent)' : 'var(--bg-surface)',
+                  color: active ? 'var(--accent-progress)' : 'var(--text-secondary)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  letterSpacing: '0.08em',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Complaints List */}
+        {/* ── Complaints Ledger ── */}
         {complaints.length === 0 ? (
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-12 text-center">
-            <div className="text-5xl mb-4">📭</div>
-            <h3 className="text-white font-medium mb-2">No complaints found</h3>
-            <p className="text-gray-400 text-sm mb-6">
+          <div style={{
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-md)',
+            padding: '48px',
+            textAlign: 'center',
+          }}>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: '8px' }}>NO RECORDS FOUND</p>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
               {selectedFilter === 'all' ? "You haven't submitted any complaints yet." : `No ${selectedFilter} complaints.`}
             </p>
             {selectedFilter === 'all' && (
               <button
                 onClick={() => setShowForm(true)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-all"
+                style={{
+                  background: 'var(--accent-progress)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '8px 18px',
+                  fontSize: '12px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 600,
+                  letterSpacing: '0.06em',
+                  cursor: 'pointer',
+                }}
               >
-                Submit Your First Complaint
+                FILE FIRST COMPLAINT
               </button>
             )}
           </div>
         ) : (
-          <div className="space-y-3">
-            {complaints.map((c) => (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            {/* Ledger header */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '110px 1fr auto',
+              gap: '16px',
+              padding: '8px 16px',
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-sm) var(--radius-sm) 0 0',
+            }}>
+              {['REF NO.', 'CASE DESCRIPTION', 'STATUS / DATE'].map((col) => (
+                <span key={col} style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.1em', fontWeight: 600 }}>
+                  {col}
+                </span>
+              ))}
+            </div>
+            {complaints.map((c, idx) => (
               <div
                 key={c._id}
                 onClick={() => setSelectedComplaint(c)}
-                className="bg-gray-900 border border-gray-800 hover:border-gray-700 rounded-2xl p-5 cursor-pointer transition-all group"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '110px 1fr auto',
+                  gap: '16px',
+                  alignItems: 'center',
+                  padding: '14px 16px',
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderTop: idx === 0 ? '1px solid var(--border-subtle)' : 'none',
+                  borderRadius: idx === complaints.length - 1 ? '0 0 var(--radius-sm) var(--radius-sm)' : '0',
+                  cursor: 'pointer',
+                  transition: 'background 0.12s',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-elevated)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'var(--bg-surface)'}
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-white font-medium text-sm group-hover:text-indigo-400 transition-colors truncate">
-                      {c.title}
-                    </h3>
-                    <p className="text-gray-400 text-xs mt-1 line-clamp-2">{c.description}</p>
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium border ${statusConfig[c.status]?.bg} ${statusConfig[c.status]?.color} ${statusConfig[c.status]?.border}`}>
-                        {statusConfig[c.status]?.label}
-                      </span>
-                      <span className={`text-xs px-2.5 py-1 rounded-full ${priorityConfig[c.priority]?.bg} ${priorityConfig[c.priority]?.color}`}>
-                        {c.priority}
-                      </span>
-                      <span className="text-xs px-2.5 py-1 rounded-full bg-gray-800 text-gray-300">
-                        {c.category}
-                      </span>
-                    </div>
+                {/* Ref number */}
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>
+                  {caseRef(c._id)}
+                </span>
+
+                {/* Title + description */}
+                <div style={{ minWidth: 0 }}>
+                  <p style={{
+                    fontFamily: 'var(--font-heading)',
+                    fontWeight: 600,
+                    fontSize: '14px',
+                    color: 'var(--text-primary)',
+                    margin: '0 0 3px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {c.title}
+                  </p>
+                  <p style={{
+                    fontFamily: 'var(--font-body)',
+                    fontSize: '12px',
+                    color: 'var(--text-secondary)',
+                    margin: '0 0 8px',
+                    overflow: 'hidden',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 1,
+                    WebkitBoxOrient: 'vertical',
+                  }}>
+                    {c.description}
+                  </p>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    <span className={priorityConfig[c.priority]?.stampClass || 'stamp stamp-neutral'}>
+                      {c.priority?.toUpperCase()} PRI
+                    </span>
+                    <span className="stamp stamp-neutral">{c.category}</span>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-gray-500 text-xs">{formatDate(c.createdAt)}</p>
-                    {c.assignedTo && (
-                      <p className="text-gray-500 text-xs mt-1">→ {c.assignedTo.name}</p>
-                    )}
-                  </div>
+                </div>
+
+                {/* Status + date */}
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <span className={statusConfig[c.status]?.stampClass || 'stamp stamp-neutral'} style={{ display: 'inline-flex', marginBottom: '6px' }}>
+                    {statusConfig[c.status]?.label}
+                  </span>
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', margin: 0 }}>
+                    {formatDate(c.createdAt).toUpperCase()}
+                  </p>
+                  {c.assignedTo && (
+                    <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', margin: '2px 0 0' }}>
+                      → {c.assignedTo.name}
+                    </p>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        {/* Pagination */}
+        {/* ── Pagination ── */}
         {total > LIMIT && (
-          <div className="flex items-center justify-center gap-3 mt-6">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginTop: '20px' }}>
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-4 py-2 rounded-lg bg-gray-800 text-gray-400 hover:text-white disabled:opacity-40 text-sm transition-all"
+              style={{
+                padding: '6px 14px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+                color: page === 1 ? 'var(--text-muted)' : 'var(--text-secondary)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '11px',
+                cursor: page === 1 ? 'not-allowed' : 'pointer',
+                opacity: page === 1 ? 0.4 : 1,
+              }}
             >
-              ← Prev
+              ← PREV
             </button>
-            <span className="text-gray-400 text-sm">Page {page} of {Math.ceil(total / LIMIT)}</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)' }}>
+              PG {page} / {Math.ceil(total / LIMIT)}
+            </span>
             <button
               onClick={() => setPage((p) => p + 1)}
               disabled={page * LIMIT >= total}
-              className="px-4 py-2 rounded-lg bg-gray-800 text-gray-400 hover:text-white disabled:opacity-40 text-sm transition-all"
+              style={{
+                padding: '6px 14px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+                color: page * LIMIT >= total ? 'var(--text-muted)' : 'var(--text-secondary)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '11px',
+                cursor: page * LIMIT >= total ? 'not-allowed' : 'pointer',
+                opacity: page * LIMIT >= total ? 0.4 : 1,
+              }}
             >
-              Next →
+              NEXT →
             </button>
           </div>
         )}
       </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 };

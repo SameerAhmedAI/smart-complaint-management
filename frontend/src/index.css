@@ -1,6 +1,34 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
-/* Global base overrides */
+/* ── Design Tokens ────────────────────────────────────── */
+:root {
+  --bg-base:          #0d0e12;
+  --bg-surface:       #15171c;
+  --bg-elevated:      #1c1f26;
+  --border-subtle:    #262932;
+  --border-strong:    #383c47;
+  --text-primary:     #e8e9ed;
+  --text-secondary:   #8b8f99;
+  --text-muted:       #555a66;
+
+  --accent-pending:   #d4a73c;
+  --accent-progress:  #4d8eff;
+  --accent-resolved:  #3fb87f;
+  --accent-rejected:  #e05a5a;
+  --accent-critical:  #ff4d6d;
+  --accent-admin:     #c084fc;
+
+  --font-heading: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-body:    'Inter', system-ui, sans-serif;
+  --font-mono:    'IBM Plex Mono', 'Courier New', monospace;
+
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+}
+
+/* ── Global Base ──────────────────────────────────────── */
 *,
 *::before,
 *::after {
@@ -10,9 +38,9 @@
 body {
   margin: 0;
   padding: 0;
-  background-color: #030712;
-  color: #f9fafb;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -20,3 +48,32 @@ body {
 #root {
   min-height: 100vh;
 }
+
+/* ── Utility: Monospace data text ─────────────────────── */
+.font-mono  { font-family: var(--font-mono); }
+.font-head  { font-family: var(--font-heading); }
+
+/* ── Status stamp badges ──────────────────────────────── */
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-radius: var(--radius-sm);
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+
+.stamp-pending   { color: var(--accent-pending);  border-color: color-mix(in srgb, var(--accent-pending) 40%, transparent);  background: color-mix(in srgb, var(--accent-pending) 10%, transparent); }
+.stamp-progress  { color: var(--accent-progress); border-color: color-mix(in srgb, var(--accent-progress) 40%, transparent); background: color-mix(in srgb, var(--accent-progress) 10%, transparent); }
+.stamp-resolved  { color: var(--accent-resolved); border-color: color-mix(in srgb, var(--accent-resolved) 40%, transparent); background: color-mix(in srgb, var(--accent-resolved) 10%, transparent); }
+.stamp-rejected  { color: var(--accent-rejected); border-color: color-mix(in srgb, var(--accent-rejected) 40%, transparent); background: color-mix(in srgb, var(--accent-rejected) 10%, transparent); }
+.stamp-critical  { color: var(--accent-critical); border-color: color-mix(in srgb, var(--accent-critical) 40%, transparent); background: color-mix(in srgb, var(--accent-critical) 10%, transparent); }
+.stamp-neutral   { color: var(--text-secondary);  border-color: var(--border-strong);  background: var(--bg-elevated); }
+.stamp-admin     { color: var(--accent-admin);    border-color: color-mix(in srgb, var(--accent-admin) 40%, transparent);   background: color-mix(in srgb, var(--accent-admin) 10%, transparent); }
+.stamp-staff     { color: var(--accent-progress); border-color: color-mix(in srgb, var(--accent-progress) 40%, transparent); background: color-mix(in srgb, var(--accent-progress) 10%, transparent); }
+.stamp-user      { color: var(--accent-resolved); border-color: color-mix(in srgb, var(--accent-resolved) 40%, transparent); background: color-mix(in srgb, var(--accent-resolved) 10%, transparent); }

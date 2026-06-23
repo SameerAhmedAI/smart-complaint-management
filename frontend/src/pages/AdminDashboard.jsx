@@ -6,33 +6,102 @@ import {
   PieChart, Pie, Cell, Legend, LineChart, Line,
 } from 'recharts';
 
-const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#14b8a6'];
+/* ── Chart color palette ──────────────────────────────── */
+const CHART_COLORS = ['#4d8eff', '#d4a73c', '#3fb87f', '#e05a5a', '#c084fc', '#14b8a6', '#f97316', '#a78bfa'];
 
+/* ── Status / Priority configs ───────────────────────── */
 const statusConfig = {
-  pending:       { label: 'Pending',     color: 'text-amber-400',   bg: 'bg-amber-400/10',   border: 'border-amber-400/30'   },
-  'in-progress': { label: 'In Progress', color: 'text-blue-400',    bg: 'bg-blue-400/10',    border: 'border-blue-400/30'    },
-  resolved:      { label: 'Resolved',    color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/30' },
-  rejected:      { label: 'Rejected',    color: 'text-red-400',     bg: 'bg-red-400/10',     border: 'border-red-400/30'     },
+  pending:       { label: 'PENDING',     stampClass: 'stamp stamp-pending',  topBorder: 'var(--accent-pending)'  },
+  'in-progress': { label: 'IN PROGRESS', stampClass: 'stamp stamp-progress', topBorder: 'var(--accent-progress)' },
+  resolved:      { label: 'RESOLVED',    stampClass: 'stamp stamp-resolved', topBorder: 'var(--accent-resolved)' },
+  rejected:      { label: 'REJECTED',    stampClass: 'stamp stamp-rejected', topBorder: 'var(--accent-rejected)' },
 };
 
 const priorityConfig = {
-  low:      { color: 'text-gray-400',   bg: 'bg-gray-400/10'   },
-  medium:   { color: 'text-yellow-400', bg: 'bg-yellow-400/10' },
-  high:     { color: 'text-orange-400', bg: 'bg-orange-400/10' },
-  critical: { color: 'text-red-400',    bg: 'bg-red-400/10'    },
+  low:      { stampClass: 'stamp stamp-neutral'  },
+  medium:   { stampClass: 'stamp stamp-pending'  },
+  high:     { stampClass: 'stamp stamp-progress' },
+  critical: { stampClass: 'stamp stamp-critical' },
 };
 
-const StatCard = ({ label, value, icon, sub }) => (
-  <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-    <div className="flex items-center justify-between mb-3">
-      <span className="text-gray-400 text-xs uppercase tracking-wide">{label}</span>
-      <span className="text-2xl">{icon}</span>
-    </div>
-    <p className="text-3xl font-bold text-white">{value}</p>
-    {sub && <p className="text-gray-500 text-xs mt-1">{sub}</p>}
+/* ── Stat Card ────────────────────────────────────────── */
+const StatCard = ({ label, value, topColor, sub }) => (
+  <div style={{
+    background: 'var(--bg-surface)',
+    border: '1px solid var(--border-subtle)',
+    borderTop: `4px solid ${topColor}`,
+    borderRadius: 'var(--radius-md)',
+    padding: '16px 18px',
+  }}>
+    <p style={{
+      fontFamily: 'var(--font-mono)',
+      fontSize: '10px',
+      fontWeight: 600,
+      letterSpacing: '0.1em',
+      textTransform: 'uppercase',
+      color: 'var(--text-muted)',
+      marginBottom: '8px',
+    }}>{label}</p>
+    <p style={{
+      fontFamily: 'var(--font-mono)',
+      fontSize: '30px',
+      fontWeight: 600,
+      color: topColor,
+      lineHeight: 1,
+    }}>{value ?? '—'}</p>
+    {sub && <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px' }}>{sub}</p>}
   </div>
 );
 
+/* ── Case Reference Generator ─────────────────────────── */
+const caseRef = (id) => {
+  const idStr = String(id ?? '');
+  return `CASE-${idStr.padStart(4, '0')}`;
+};
+
+/* ── Chart panel wrapper ──────────────────────────────── */
+const ChartPanel = ({ title, children }) => (
+  <div style={{
+    background: 'var(--bg-surface)',
+    border: '1px solid var(--border-subtle)',
+    borderRadius: 'var(--radius-md)',
+    padding: '18px',
+  }}>
+    <p style={{
+      fontFamily: 'var(--font-mono)',
+      fontSize: '10px',
+      fontWeight: 600,
+      letterSpacing: '0.1em',
+      textTransform: 'uppercase',
+      color: 'var(--text-muted)',
+      marginBottom: '14px',
+    }}>{title}</p>
+    {children}
+  </div>
+);
+
+/* ── Field style ──────────────────────────────────────── */
+const fieldStyle = {
+  width: '100%',
+  background: 'var(--bg-elevated)',
+  border: '1px solid var(--border-strong)',
+  borderRadius: 'var(--radius-md)',
+  padding: '9px 12px',
+  color: 'var(--text-primary)',
+  fontFamily: 'var(--font-body)',
+  fontSize: '13px',
+  outline: 'none',
+  boxSizing: 'border-box',
+};
+
+/* ── Tooltip style for recharts ───────────────────────── */
+const tooltipStyle = {
+  contentStyle: { background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)', borderRadius: '4px', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: '12px' },
+  itemStyle: { color: 'var(--text-secondary)' },
+  labelStyle: { color: 'var(--text-muted)', fontSize: '11px' },
+};
+
+/* ── AdminDashboard ────────────────────────────────────── */
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [byCategory, setByCategory] = useState([]);
@@ -82,7 +151,6 @@ const AdminDashboard = () => {
     }
   }, [page, statusFilter]);
 
-  // Derive client-side filtered list by applying the debounced keyword
   const filteredComplaints = searchQuery
     ? allComplaints.filter((c) => {
         const q = searchQuery.toLowerCase();
@@ -98,9 +166,7 @@ const AdminDashboard = () => {
     const val = e.target.value;
     setSearchInput(val);
     clearTimeout(searchDebounceRef.current);
-    searchDebounceRef.current = setTimeout(() => {
-      setSearchQuery(val.trim());
-    }, 300);
+    searchDebounceRef.current = setTimeout(() => setSearchQuery(val.trim()), 300);
   };
 
   const clearSearch = () => {
@@ -169,7 +235,6 @@ const AdminDashboard = () => {
     try {
       await api.put(`/complaints/${complaintId}/status`, { status: newStatus });
       toast.success(`Status updated to "${newStatus}"`);
-      // Optimistically update local state so UI reflects change instantly
       setAllComplaints((prev) =>
         prev.map((c) => (c._id === complaintId ? { ...c, status: newStatus } : c))
       );
@@ -193,203 +258,227 @@ const AdminDashboard = () => {
 
   const formatDate = (d) => new Date(d).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 
-  const tooltipStyle = {
-    contentStyle: { background: '#1f2937', border: '1px solid #374151', borderRadius: '12px', color: '#fff' },
-    itemStyle: { color: '#e5e7eb' },
-    labelStyle: { color: '#9ca3af' },
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full animate-spin" />
+      <div style={{ minHeight: '100vh', background: 'var(--bg-base)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 28, height: 28, border: '2px solid var(--border-strong)', borderTop: '2px solid var(--accent-rejected)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
+  /* ── Shared tab style ──────────────────────────────── */
+  const tabStyle = (key) => ({
+    padding: '6px 14px',
+    borderRadius: 'var(--radius-md)',
+    border: `1px solid ${activeTab === key ? 'var(--accent-rejected)' : 'transparent'}`,
+    background: activeTab === key ? 'color-mix(in srgb, var(--accent-rejected) 12%, transparent)' : 'transparent',
+    color: activeTab === key ? 'var(--accent-rejected)' : 'var(--text-secondary)',
+    fontFamily: 'var(--font-mono)',
+    fontSize: '11px',
+    fontWeight: 600,
+    letterSpacing: '0.08em',
+    cursor: 'pointer',
+    transition: 'all 0.15s',
+  });
+
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
-          <p className="text-gray-400 text-sm mt-1">System-wide overview and management</p>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
+      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '32px 16px' }}>
+
+        {/* ── Page Header ── */}
+        <div style={{ marginBottom: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+              SYSTEM COMMAND
+            </span>
+            <span style={{ width: 32, height: '1px', background: 'var(--border-strong)' }} />
+            <span className="stamp stamp-admin">ADMIN</span>
+          </div>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '22px', color: 'var(--text-primary)', margin: 0 }}>
+            Operations Control Center
+          </h1>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+            System-wide overview and case management
+          </p>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-8 border-b border-gray-800 pb-4">
-          {[
-            { key: 'overview', label: '📊 Overview' },
-            { key: 'complaints', label: '📋 All Complaints' },
-            { key: 'users', label: '👥 Users' },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                activeTab === tab.key
-                  ? 'bg-red-600 text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        {/* ── Tabs ── */}
+        <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '12px' }}>
+          <button style={tabStyle('overview')} onClick={() => setActiveTab('overview')}>◈ OVERVIEW</button>
+          <button style={tabStyle('complaints')} onClick={() => setActiveTab('complaints')}>▦ ALL CASES</button>
+          <button style={tabStyle('users')} onClick={() => setActiveTab('users')}>◉ USERS</button>
         </div>
 
-        {/* ─── OVERVIEW TAB ─── */}
+        {/* ────────────── OVERVIEW TAB ────────────── */}
         {activeTab === 'overview' && stats && (
           <>
-            {/* KPI Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              <StatCard label="Total Complaints" value={stats.totalComplaints} icon="📋" />
-              <StatCard label="Pending" value={stats.pendingCount} icon="⏳" />
-              <StatCard label="In Progress" value={stats.inProgressCount} icon="🔄" />
-              <StatCard label="Resolved" value={stats.resolvedCount} icon="✅" sub={`Rate: ${stats.resolutionRate}%`} />
-              <StatCard label="Rejected" value={stats.rejectedCount} icon="❌" />
-              <StatCard label="Total Users" value={stats.totalUsers} icon="👤" />
-              <StatCard label="Staff Members" value={stats.totalStaff} icon="👷" />
-              <StatCard label="Resolution Rate" value={`${stats.resolutionRate}%`} icon="📈" />
+            {/* KPI Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
+              <StatCard label="Total Cases"    value={stats.totalComplaints} topColor="var(--text-muted)" />
+              <StatCard label="Pending"        value={stats.pendingCount}    topColor="var(--accent-pending)" />
+              <StatCard label="In Progress"    value={stats.inProgressCount} topColor="var(--accent-progress)" />
+              <StatCard label="Resolved"       value={stats.resolvedCount}   topColor="var(--accent-resolved)" sub={`Rate: ${stats.resolutionRate}%`} />
+              <StatCard label="Rejected"       value={stats.rejectedCount}   topColor="var(--accent-rejected)" />
+              <StatCard label="Total Users"    value={stats.totalUsers}      topColor="var(--text-secondary)" />
+              <StatCard label="Staff Members"  value={stats.totalStaff}      topColor="var(--accent-admin)" />
+              <StatCard label="Resolution"     value={`${stats.resolutionRate}%`} topColor="var(--accent-resolved)" />
             </div>
 
-            {/* Charts Row 1 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              {/* Category Bar Chart */}
-              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-                <h3 className="text-sm font-semibold text-white mb-4">Complaints by Category</h3>
+            {/* Charts Row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <ChartPanel title="CASES BY CATEGORY">
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={byCategory} margin={{ left: -20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 11 }} angle={-20} textAnchor="end" height={50} />
-                    <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
+                    <XAxis dataKey="name" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' }} angle={-20} textAnchor="end" height={50} />
+                    <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' }} />
                     <Tooltip {...tooltipStyle} />
-                    <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                      {byCategory.map((_, i) => (
-                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                      ))}
+                    <Bar dataKey="value" radius={[2, 2, 0, 0]}>
+                      {byCategory.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartPanel>
 
-              {/* Priority Pie Chart */}
-              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-                <h3 className="text-sm font-semibold text-white mb-4">Complaints by Priority</h3>
+              <ChartPanel title="CASES BY PRIORITY">
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
-                    <Pie
-                      data={byPriority}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
+                    <Pie data={byPriority} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80}
                       label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      labelLine={{ stroke: '#6b7280' }}
+                      labelLine={{ stroke: 'var(--border-strong)' }}
                     >
-                      {byPriority.map((_, i) => (
-                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                      ))}
+                      {byPriority.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                     </Pie>
                     <Tooltip {...tooltipStyle} />
                   </PieChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartPanel>
             </div>
 
-            {/* Monthly Trend Line Chart */}
+            {/* Trend Chart */}
             {monthlyTrend.length > 0 && (
-              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mb-6">
-                <h3 className="text-sm font-semibold text-white mb-4">6-Month Complaint Trend</h3>
+              <ChartPanel title="6-MONTH CASE TREND">
                 <ResponsiveContainer width="100%" height={240}>
                   <LineChart data={monthlyTrend} margin={{ left: -20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis dataKey="month" tick={{ fill: '#9ca3af', fontSize: 11 }} />
-                    <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
+                    <XAxis dataKey="month" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' }} />
+                    <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' }} />
                     <Tooltip {...tooltipStyle} />
-                    <Legend wrapperStyle={{ color: '#9ca3af', fontSize: 12 }} />
-                    <Line type="monotone" dataKey="total" stroke="#6366f1" strokeWidth={2} dot={{ fill: '#6366f1', r: 4 }} name="Total" />
-                    <Line type="monotone" dataKey="resolved" stroke="#10b981" strokeWidth={2} dot={{ fill: '#10b981', r: 4 }} name="Resolved" />
+                    <Legend wrapperStyle={{ color: 'var(--text-muted)', fontSize: 11, fontFamily: 'var(--font-mono)' }} />
+                    <Line type="monotone" dataKey="total" stroke="var(--accent-progress)" strokeWidth={2} dot={{ fill: 'var(--accent-progress)', r: 3 }} name="Total" />
+                    <Line type="monotone" dataKey="resolved" stroke="var(--accent-resolved)" strokeWidth={2} dot={{ fill: 'var(--accent-resolved)', r: 3 }} name="Resolved" />
                   </LineChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartPanel>
             )}
 
-            {/* Recent Complaints */}
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-              <h3 className="text-sm font-semibold text-white mb-4">Recent Complaints</h3>
-              <div className="space-y-3">
-                {recentComplaints.map((c) => (
-                  <div key={c._id} className="flex items-center justify-between gap-4 py-2 border-b border-gray-800 last:border-0">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white text-sm font-medium truncate">{c.title}</p>
-                      <p className="text-gray-400 text-xs mt-0.5">{c.submittedBy?.name} · {formatDate(c.createdAt)}</p>
-                    </div>
-                    <div className="flex gap-2 flex-shrink-0">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${statusConfig[c.status]?.bg} ${statusConfig[c.status]?.color}`}>
-                        {statusConfig[c.status]?.label}
-                      </span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${priorityConfig[c.priority]?.bg} ${priorityConfig[c.priority]?.color}`}>
-                        {c.priority}
-                      </span>
-                    </div>
+            {/* Recent Cases */}
+            <div style={{ marginTop: '16px' }}>
+              <ChartPanel title="RECENT CASE FILINGS">
+                <div>
+                  {/* Header row */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr auto', gap: '16px', padding: '6px 0', marginBottom: '4px' }}>
+                    {['REF NO.', 'TITLE / SUBMITTER', 'STATUS'].map((h) => (
+                      <span key={h} style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--text-muted)', letterSpacing: '0.1em', fontWeight: 600 }}>{h}</span>
+                    ))}
                   </div>
-                ))}
-              </div>
+                  {recentComplaints.map((c, idx) => (
+                    <div
+                      key={c._id}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '110px 1fr auto',
+                        gap: '16px',
+                        alignItems: 'center',
+                        padding: '10px 0',
+                        borderTop: idx === 0 ? '1px solid var(--border-subtle)' : '1px solid color-mix(in srgb, var(--border-subtle) 50%, transparent)',
+                      }}
+                    >
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)' }}>{caseRef(c._id)}</span>
+                      <div>
+                        <p style={{ fontFamily: 'var(--font-heading)', fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</p>
+                        <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', margin: 0 }}>
+                          {c.submittedBy?.name} · {formatDate(c.createdAt).toUpperCase()}
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <span className={statusConfig[c.status]?.stampClass || 'stamp stamp-neutral'}>{statusConfig[c.status]?.label}</span>
+                        <span className={priorityConfig[c.priority]?.stampClass || 'stamp stamp-neutral'}>{c.priority?.toUpperCase()}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ChartPanel>
             </div>
           </>
         )}
 
-        {/* ─── COMPLAINTS TAB ─── */}
+        {/* ────────────── COMPLAINTS TAB ────────────── */}
         {activeTab === 'complaints' && (
           <>
             {/* Assign Modal */}
             {selectedComplaint && (
-              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-lg">
-                  <div className="flex justify-between items-start mb-4">
-                    <h2 className="text-lg font-semibold text-white pr-4">{selectedComplaint.title}</h2>
-                    <button onClick={() => setSelectedComplaint(null)} className="text-gray-500 hover:text-white">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+                <div style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-strong)',
+                  borderTop: '4px solid var(--accent-rejected)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '24px',
+                  width: '100%',
+                  maxWidth: '520px',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                    <div>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
+                        {caseRef(selectedComplaint._id)} · ASSIGN HANDLER
+                      </span>
+                      <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: '16px', color: 'var(--text-primary)', margin: 0 }}>
+                        {selectedComplaint.title}
+                      </h2>
+                    </div>
+                    <button onClick={() => setSelectedComplaint(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   </div>
 
-                  <p className="text-gray-400 text-sm mb-4">{selectedComplaint.description}</p>
+                  <p style={{ fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: 1.5 }}>
+                    {selectedComplaint.description}
+                  </p>
 
                   {selectedComplaint.aiAnalysis?.summary && (
-                    <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3 mb-4">
-                      <p className="text-xs text-indigo-400 mb-1">🤖 AI Summary</p>
-                      <p className="text-indigo-300 text-sm">{selectedComplaint.aiAnalysis.summary}</p>
-                      <p className="text-indigo-400 text-xs mt-1">Suggested Dept: {selectedComplaint.aiAnalysis.suggestedDepartment}</p>
+                    <div style={{ background: 'color-mix(in srgb, var(--accent-progress) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-progress) 25%, transparent)', borderRadius: 'var(--radius-md)', padding: '10px 12px', marginBottom: '16px' }}>
+                      <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--accent-progress)', letterSpacing: '0.08em', marginBottom: '4px' }}>◈ AI SUMMARY</p>
+                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>{selectedComplaint.aiAnalysis.summary}</p>
+                      <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--accent-progress)' }}>
+                        SUGGESTED DEPT → {selectedComplaint.aiAnalysis.suggestedDepartment}
+                      </p>
                     </div>
                   )}
 
-                  <div className="space-y-3">
-                    <label className="block text-sm text-gray-300">Assign to Staff Member</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <label style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.08em' }}>ASSIGN TO STAFF MEMBER</label>
                     <select
                       value={selectedStaff}
                       onChange={(e) => setSelectedStaff(e.target.value)}
-                      className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-red-500 text-sm"
+                      style={fieldStyle}
                     >
                       <option value="">Select staff member...</option>
                       {staffList.map((s) => (
-                        <option key={s._id} value={s._id}>
-                          {s.name}{s.department ? ` — ${s.department}` : ''}
-                        </option>
+                        <option key={s._id} value={s._id}>{s.name}{s.department ? ` — ${s.department}` : ''}</option>
                       ))}
                     </select>
-                    <div className="flex gap-3">
-                      <button onClick={() => setSelectedComplaint(null)} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-700 text-gray-400 hover:text-white text-sm transition-all">
-                        Cancel
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button onClick={() => setSelectedComplaint(null)} style={{ flex: 1, padding: '9px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-strong)', background: 'transparent', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', cursor: 'pointer' }}>
+                        CANCEL
                       </button>
                       <button
                         onClick={handleAssign}
                         disabled={assigning || !selectedStaff}
-                        className="flex-1 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 disabled:bg-red-600/50 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
+                        style={{ flex: 1, padding: '9px', borderRadius: 'var(--radius-md)', border: 'none', background: assigning || !selectedStaff ? 'color-mix(in srgb, var(--accent-rejected) 40%, transparent)' : 'var(--accent-rejected)', color: '#fff', fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', cursor: assigning || !selectedStaff ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                       >
-                        {assigning ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Assign'}
+                        {assigning ? <div style={{ width: 12, height: 12, border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> : 'ASSIGN'}
                       </button>
                     </div>
                   </div>
@@ -397,11 +486,11 @@ const AdminDashboard = () => {
               </div>
             )}
 
-            {/* Search Bar */}
-            <div className="relative mb-4">
-              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+            {/* Search */}
+            <div style={{ position: 'relative', marginBottom: '12px' }}>
+              <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
                 </svg>
               </div>
               <input
@@ -409,96 +498,115 @@ const AdminDashboard = () => {
                 value={searchInput}
                 onChange={handleSearchChange}
                 placeholder="Search by title, description, or submitter…"
-                className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-9 pr-9 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-red-500 transition-colors"
+                style={{ ...fieldStyle, paddingLeft: '36px', paddingRight: searchInput ? '36px' : '12px' }}
               />
               {searchInput && (
-                <button
-                  onClick={clearSearch}
-                  className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-white transition-colors"
-                  aria-label="Clear search"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                <button onClick={clearSearch} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0 }} aria-label="Clear search">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               )}
             </div>
 
             {/* Status Filter */}
-            <div className="flex gap-2 mb-6 flex-wrap">
-              {['all', 'pending', 'in-progress', 'resolved', 'rejected'].map((f) => (
-                <button
-                  key={f}
-                  onClick={() => { setStatusFilter(f); setPage(1); }}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                    statusFilter === f ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700'
-                  }`}
-                >
-                  {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1).replace('-', ' ')}
-                </button>
-              ))}
+            <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', flexWrap: 'wrap' }}>
+              {['all', 'pending', 'in-progress', 'resolved', 'rejected'].map((f) => {
+                const active = statusFilter === f;
+                return (
+                  <button
+                    key={f}
+                    onClick={() => { setStatusFilter(f); setPage(1); }}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: 'var(--radius-md)',
+                      border: `1px solid ${active ? 'var(--accent-rejected)' : 'var(--border-subtle)'}`,
+                      background: active ? 'color-mix(in srgb, var(--accent-rejected) 12%, transparent)' : 'var(--bg-surface)',
+                      color: active ? 'var(--accent-rejected)' : 'var(--text-secondary)',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      letterSpacing: '0.08em',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {f === 'all' ? 'ALL' : f.toUpperCase().replace('-', ' ')}
+                  </button>
+                );
+              })}
             </div>
 
-            {/* Complaints Table */}
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+            {/* Cases Table */}
+            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                   <thead>
-                    <tr className="border-b border-gray-800">
-                      <th className="text-left text-gray-400 font-medium px-5 py-3">Title</th>
-                      <th className="text-left text-gray-400 font-medium px-5 py-3">Submitted By</th>
-                      <th className="text-left text-gray-400 font-medium px-5 py-3">Category</th>
-                      <th className="text-left text-gray-400 font-medium px-5 py-3">Priority</th>
-                      <th className="text-left text-gray-400 font-medium px-5 py-3">Status</th>
-                      <th className="text-left text-gray-400 font-medium px-5 py-3">Date</th>
-                      <th className="text-left text-gray-400 font-medium px-5 py-3">Actions</th>
+                    <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                      {['REF / TITLE', 'SUBMITTER', 'CATEGORY', 'PRIORITY', 'STATUS', 'DATE', 'ACTIONS'].map((h) => (
+                        <th key={h} style={{ textAlign: 'left', fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', color: 'var(--text-muted)', padding: '10px 14px' }}>{h}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
                     {filteredComplaints.map((c) => (
-                      <tr key={c._id} className="border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors">
-                        <td className="px-5 py-3">
-                          <p className="text-white font-medium max-w-[200px] truncate">{c.title}</p>
-                          {c.assignedTo && <p className="text-gray-500 text-xs mt-0.5">→ {c.assignedTo.name}</p>}
+                      <tr
+                        key={c._id}
+                        style={{ borderBottom: '1px solid color-mix(in srgb, var(--border-subtle) 60%, transparent)', transition: 'background 0.1s' }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-elevated)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <td style={{ padding: '12px 14px' }}>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>{caseRef(c._id)}</span>
+                          <p style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)', margin: 0, maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</p>
+                          {c.assignedTo && <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', margin: '2px 0 0' }}>→ {c.assignedTo.name}</p>}
                         </td>
-                        <td className="px-5 py-3 text-gray-300">{c.submittedBy?.name}</td>
-                        <td className="px-5 py-3">
-                          <span className="text-xs bg-gray-800 text-gray-300 px-2 py-1 rounded-full">{c.category}</span>
+                        <td style={{ padding: '12px 14px', fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--text-secondary)' }}>{c.submittedBy?.name}</td>
+                        <td style={{ padding: '12px 14px' }}>
+                          <span className="stamp stamp-neutral">{c.category}</span>
                         </td>
-                        <td className="px-5 py-3">
-                          <span className={`text-xs px-2 py-1 rounded-full ${priorityConfig[c.priority]?.bg} ${priorityConfig[c.priority]?.color}`}>
-                            {c.priority}
-                          </span>
+                        <td style={{ padding: '12px 14px' }}>
+                          <span className={priorityConfig[c.priority]?.stampClass || 'stamp stamp-neutral'}>{c.priority?.toUpperCase()}</span>
                         </td>
-                        <td className="px-5 py-3">
+                        <td style={{ padding: '12px 14px' }}>
                           <select
                             value={c.status}
                             disabled={updatingStatusId === c._id}
                             onChange={(e) => handleStatusUpdate(c._id, e.target.value)}
-                            className={`text-xs px-2 py-1.5 rounded-lg border bg-gray-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-wait
-                              ${statusConfig[c.status]?.border} ${statusConfig[c.status]?.color}`}
+                            style={{
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: '10px',
+                              fontWeight: 600,
+                              letterSpacing: '0.06em',
+                              padding: '4px 8px',
+                              borderRadius: 'var(--radius-sm)',
+                              border: '1px solid var(--border-strong)',
+                              background: 'var(--bg-elevated)',
+                              color: statusConfig[c.status]?.topBorder || 'var(--text-primary)',
+                              cursor: 'pointer',
+                              outline: 'none',
+                              opacity: updatingStatusId === c._id ? 0.5 : 1,
+                            }}
                           >
-                            <option value="pending">⏳ Pending</option>
-                            <option value="in-progress">🔄 In Progress</option>
-                            <option value="resolved">✅ Resolved</option>
-                            <option value="rejected">❌ Rejected</option>
+                            <option value="pending">PENDING</option>
+                            <option value="in-progress">IN PROGRESS</option>
+                            <option value="resolved">RESOLVED</option>
+                            <option value="rejected">REJECTED</option>
                           </select>
                         </td>
-                        <td className="px-5 py-3 text-gray-500 text-xs">{formatDate(c.createdAt)}</td>
-                        <td className="px-5 py-3">
-                          <div className="flex gap-2">
+                        <td style={{ padding: '12px 14px', fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{formatDate(c.createdAt).toUpperCase()}</td>
+                        <td style={{ padding: '12px 14px' }}>
+                          <div style={{ display: 'flex', gap: '6px' }}>
                             <button
                               onClick={() => { setSelectedComplaint(c); setSelectedStaff(c.assignedTo?._id || ''); }}
-                              className="text-xs text-indigo-400 hover:text-indigo-300 px-2 py-1 rounded bg-indigo-500/10 hover:bg-indigo-500/20 transition-all"
+                              style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600, color: 'var(--accent-progress)', background: 'color-mix(in srgb, var(--accent-progress) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-progress) 30%, transparent)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', cursor: 'pointer', letterSpacing: '0.04em', transition: 'all 0.12s' }}
                             >
-                              Assign
+                              ASSIGN
                             </button>
                             <button
                               onClick={() => handleDelete(c._id)}
                               disabled={deletingId === c._id}
-                              className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded bg-red-500/10 hover:bg-red-500/20 transition-all disabled:opacity-50"
+                              style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600, color: 'var(--accent-rejected)', background: 'color-mix(in srgb, var(--accent-rejected) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-rejected) 30%, transparent)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', cursor: deletingId === c._id ? 'not-allowed' : 'pointer', letterSpacing: '0.04em', opacity: deletingId === c._id ? 0.5 : 1, transition: 'all 0.12s' }}
                             >
-                              {deletingId === c._id ? '...' : 'Delete'}
+                              {deletingId === c._id ? '…' : 'DELETE'}
                             </button>
                           </div>
                         </td>
@@ -507,14 +615,9 @@ const AdminDashboard = () => {
                   </tbody>
                 </table>
                 {filteredComplaints.length === 0 && (
-                  <div className="py-12 text-center">
-                    <div className="text-4xl mb-3">🔍</div>
-                    <p className="text-gray-400 font-medium">No complaints found</p>
-                    {searchQuery && (
-                      <p className="text-gray-500 text-sm mt-1">
-                        No results for &ldquo;<span className="text-gray-300">{searchQuery}</span>&rdquo;
-                      </p>
-                    )}
+                  <div style={{ padding: '48px', textAlign: 'center' }}>
+                    <p style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: '6px' }}>NO RECORDS FOUND</p>
+                    {searchQuery && <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>No results for &ldquo;<span style={{ color: 'var(--text-primary)' }}>{searchQuery}</span>&rdquo;</p>}
                   </div>
                 )}
               </div>
@@ -522,79 +625,83 @@ const AdminDashboard = () => {
 
             {/* Pagination */}
             {total > LIMIT && (
-              <div className="flex items-center justify-center gap-3 mt-6">
-                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-4 py-2 rounded-lg bg-gray-800 text-gray-400 hover:text-white disabled:opacity-40 text-sm">
-                  ← Prev
-                </button>
-                <span className="text-gray-400 text-sm">Page {page} of {Math.ceil(total / LIMIT)}</span>
-                <button onClick={() => setPage((p) => p + 1)} disabled={page * LIMIT >= total} className="px-4 py-2 rounded-lg bg-gray-800 text-gray-400 hover:text-white disabled:opacity-40 text-sm">
-                  Next →
-                </button>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginTop: '20px' }}>
+                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: '6px 14px', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', color: page === 1 ? 'var(--text-muted)' : 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: '11px', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1 }}>← PREV</button>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)' }}>PG {page} / {Math.ceil(total / LIMIT)}</span>
+                <button onClick={() => setPage((p) => p + 1)} disabled={page * LIMIT >= total} style={{ padding: '6px 14px', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', color: page * LIMIT >= total ? 'var(--text-muted)' : 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: '11px', cursor: page * LIMIT >= total ? 'not-allowed' : 'pointer', opacity: page * LIMIT >= total ? 0.4 : 1 }}>NEXT →</button>
               </div>
             )}
           </>
         )}
 
-        {/* ─── USERS TAB ─── */}
+        {/* ────────────── USERS TAB ────────────── */}
         {activeTab === 'users' && (
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                 <thead>
-                  <tr className="border-b border-gray-800">
-                    <th className="text-left text-gray-400 font-medium px-5 py-3">Name</th>
-                    <th className="text-left text-gray-400 font-medium px-5 py-3">Email</th>
-                    <th className="text-left text-gray-400 font-medium px-5 py-3">Role</th>
-                    <th className="text-left text-gray-400 font-medium px-5 py-3">Department</th>
-                    <th className="text-left text-gray-400 font-medium px-5 py-3">Status</th>
-                    <th className="text-left text-gray-400 font-medium px-5 py-3">Actions</th>
+                  <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                    {['NAME', 'EMAIL', 'ROLE', 'DEPARTMENT', 'STATUS', 'ACTIONS'].map((h) => (
+                      <th key={h} style={{ textAlign: 'left', fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', color: 'var(--text-muted)', padding: '10px 14px' }}>{h}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((u) => (
-                    <tr key={u._id} className="border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors">
-                      <td className="px-5 py-3 text-white font-medium">{u.name}</td>
-                      <td className="px-5 py-3 text-gray-400">{u.email}</td>
-                      <td className="px-5 py-3">
-                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                          u.role === 'admin' ? 'bg-red-500/15 text-red-400' :
-                          u.role === 'staff' ? 'bg-blue-500/15 text-blue-400' :
-                          'bg-emerald-500/15 text-emerald-400'
-                        }`}>
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-gray-400">{u.department || '—'}</td>
-                      <td className="px-5 py-3">
-                        <span className={`text-xs px-2.5 py-1 rounded-full ${u.isActive ? 'bg-emerald-500/15 text-emerald-400' : 'bg-gray-500/15 text-gray-400'}`}>
-                          {u.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3">
-                        <button
-                          onClick={() => handleToggleUserActive(u._id, u.isActive)}
-                          className={`text-xs px-3 py-1 rounded-lg transition-all ${
-                            u.isActive
-                              ? 'text-red-400 bg-red-500/10 hover:bg-red-500/20'
-                              : 'text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20'
-                          }`}
-                        >
-                          {u.isActive ? 'Deactivate' : 'Activate'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {users.map((u) => {
+                    const roleClass = { admin: 'stamp stamp-admin', staff: 'stamp stamp-staff', user: 'stamp stamp-user' };
+                    return (
+                      <tr
+                        key={u._id}
+                        style={{ borderBottom: '1px solid color-mix(in srgb, var(--border-subtle) 60%, transparent)', transition: 'background 0.1s' }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-elevated)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <td style={{ padding: '12px 14px', fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)' }}>{u.name}</td>
+                        <td style={{ padding: '12px 14px', fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-secondary)' }}>{u.email}</td>
+                        <td style={{ padding: '12px 14px' }}>
+                          <span className={roleClass[u.role] || 'stamp stamp-neutral'}>{u.role.toUpperCase()}</span>
+                        </td>
+                        <td style={{ padding: '12px 14px', fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)' }}>{u.department || '—'}</td>
+                        <td style={{ padding: '12px 14px' }}>
+                          <span className={u.isActive ? 'stamp stamp-resolved' : 'stamp stamp-neutral'}>
+                            {u.isActive ? 'ACTIVE' : 'INACTIVE'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 14px' }}>
+                          <button
+                            onClick={() => handleToggleUserActive(u._id, u.isActive)}
+                            style={{
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: '10px',
+                              fontWeight: 600,
+                              letterSpacing: '0.04em',
+                              color: u.isActive ? 'var(--accent-rejected)' : 'var(--accent-resolved)',
+                              background: u.isActive ? 'color-mix(in srgb, var(--accent-rejected) 10%, transparent)' : 'color-mix(in srgb, var(--accent-resolved) 10%, transparent)',
+                              border: u.isActive ? '1px solid color-mix(in srgb, var(--accent-rejected) 30%, transparent)' : '1px solid color-mix(in srgb, var(--accent-resolved) 30%, transparent)',
+                              borderRadius: 'var(--radius-sm)',
+                              padding: '3px 10px',
+                              cursor: 'pointer',
+                              transition: 'all 0.12s',
+                            }}
+                          >
+                            {u.isActive ? 'DEACTIVATE' : 'ACTIVATE'}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
               {users.length === 0 && (
-                <div className="py-12 text-center">
-                  <p className="text-gray-500">No users found</p>
+                <div style={{ padding: '48px', textAlign: 'center' }}>
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-muted)', letterSpacing: '0.08em' }}>NO USERS FOUND</p>
                 </div>
               )}
             </div>
           </div>
         )}
       </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 };
