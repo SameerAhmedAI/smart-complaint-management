@@ -35,9 +35,17 @@
   box-sizing: border-box;
 }
 
+/* Prevent any element from causing horizontal scroll */
+html {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 body {
   margin: 0;
   padding: 0;
+  overflow-x: hidden;
+  max-width: 100vw;
   background-color: var(--bg-base);
   color: var(--text-primary);
   font-family: var(--font-body);
@@ -47,6 +55,8 @@ body {
 
 #root {
   min-height: 100vh;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 /* ── Autofill dark theme override ────────────────────── */
@@ -89,3 +99,127 @@ input:-webkit-autofill:active {
 .stamp-admin     { color: var(--accent-admin);    border-color: color-mix(in srgb, var(--accent-admin) 40%, transparent);   background: color-mix(in srgb, var(--accent-admin) 10%, transparent); }
 .stamp-staff     { color: var(--accent-progress); border-color: color-mix(in srgb, var(--accent-progress) 40%, transparent); background: color-mix(in srgb, var(--accent-progress) 10%, transparent); }
 .stamp-user      { color: var(--accent-resolved); border-color: color-mix(in srgb, var(--accent-resolved) 40%, transparent); background: color-mix(in srgb, var(--accent-resolved) 10%, transparent); }
+
+/* ── Mobile Responsive Utilities ─────────────────────── */
+
+/* Stat grids: 4 cols → 2 cols → 1 col */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+/* Prevent grid children from overflowing their cell */
+.stat-grid > * {
+  min-width: 0;
+}
+.stat-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+.stat-grid-2 > * {
+  min-width: 0;
+}
+
+/* Chart panel pair: 2 cols → 1 col */
+.chart-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* Ledger row badge group: flex-wrap on mobile */
+.ledger-badges {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Navbar mobile overlay menu */
+.nav-mobile-menu {
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-subtle);
+  padding: 8px 16px 12px;
+}
+.nav-mobile-menu.open {
+  display: flex;
+}
+.nav-desktop-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.nav-hamburger {
+  display: none;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 6px 8px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  align-items: center;
+  justify-content: center;
+}
+
+/* Overflow table wrapper keeps tables from breaking layout */
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .chart-grid-2 {
+    grid-template-columns: 1fr;
+  }
+  .nav-desktop-links {
+    display: none !important;
+  }
+  .nav-hamburger {
+    display: flex;
+  }
+  /* Hide username text on mobile — role stamp stays */
+  .nav-username {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Hide logout label text, keep icon */
+  .nav-logout-label {
+    display: none;
+  }
+  /* Tighten navbar gaps */
+  .nav-username {
+    display: none;
+  }
+}
+
+@media (max-width: 400px) {
+  .stat-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .stat-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Page container utility ───────────────────────────── */
+/* Ensures every page content wrapper is safely within viewport */
+.page-container {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}

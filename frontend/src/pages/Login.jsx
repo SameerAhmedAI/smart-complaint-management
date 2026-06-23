@@ -74,6 +74,9 @@ const Login = () => {
   return (
     <div style={{
       minHeight: '100vh',
+      width: '100%',
+      boxSizing: 'border-box',
+      overflowX: 'hidden',
       background: 'var(--bg-base)',
       display: 'flex',
       alignItems: 'center',

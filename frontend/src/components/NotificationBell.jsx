@@ -69,12 +69,29 @@ const NotificationBell = () => {
   };
 
   const timeAgo = (date) => {
-    const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+    if (!date) return '';
+    
+    let parsedDate;
+    if (date instanceof Date) {
+      parsedDate = date;
+    } else {
+      parsedDate = new Date(date);
+      if (isNaN(parsedDate.getTime())) {
+        let str = String(date).replace(' ', 'T');
+        str = str.replace(/\.(\d{3})\d+/, '.$1');
+        parsedDate = new Date(str);
+      }
+    }
+    
+    if (isNaN(parsedDate.getTime())) return '';
+    const seconds = Math.floor((new Date() - parsedDate) / 1000);
     if (seconds < 60) return 'just now';
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
     return `${Math.floor(seconds / 86400)}d ago`;
   };
+
+
 
   return (
     <div className="relative" ref={ref}>

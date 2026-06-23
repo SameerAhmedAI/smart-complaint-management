@@ -5,7 +5,7 @@ const db = require('../config/db').db;
  * protect — verifies JWT and attaches req.user (without password)
  * Exposes both req.user.id and req.user._id for backward compatibility.
  */
-const protect = (req, res, next) => {
+const protect = async (req, res, next) => {
   let token;
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
     token = req.headers.authorization.split(' ')[1];
@@ -18,10 +18,12 @@ const protect = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const user = db.prepare(
+    const { rows } = await db.query(
       `SELECT id, name, email, role, department, isActive, lastLogin, createdAt, updatedAt
-       FROM users WHERE id = ?`
-    ).get(decoded.id);
+       FROM users WHERE id = $1`,
+      [decoded.id]
+    );
+    const user = rows[0];
 
     if (!user) {
       return res.status(401).json({ success: false, message: 'User no longer exists' });
@@ -39,6 +41,7 @@ const protect = (req, res, next) => {
     return res.status(401).json({ success: false, message: 'Not authorized, token invalid or expired' });
   }
 };
+
 
 /**
  * authorize — restricts access to specific roles

@@ -6,8 +6,18 @@ import {
   PieChart, Pie, Cell, Legend, LineChart, Line,
 } from 'recharts';
 
-/* ── Chart color palette ──────────────────────────────── */
+/* ── Chart color palettes ─────────────────────────────── */
+/* Category chart — cycling accent colors */
 const CHART_COLORS = ['#4d8eff', '#d4a73c', '#3fb87f', '#e05a5a', '#c084fc', '#14b8a6', '#f97316', '#a78bfa'];
+
+/* Priority pie — semantically mapped to match stamp colors */
+const PRIORITY_COLORS = {
+  low:      '#555a66', /* text-muted neutral */
+  medium:   '#d4a73c', /* accent-pending amber */
+  high:     '#e05a5a', /* accent-rejected red */
+  critical: '#ff4d6d', /* accent-critical pink */
+};
+const getPriorityColor = (name) => PRIORITY_COLORS[name?.toLowerCase()] || '#4d8eff';
 
 /* ── Status / Priority configs ───────────────────────── */
 const statusConfig = {
@@ -125,6 +135,7 @@ const AdminDashboard = () => {
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const searchDebounceRef = useRef(null);
+  const [userSearch, setUserSearch] = useState('');
 
   const fetchDashboard = useCallback(async () => {
     try {
@@ -150,6 +161,8 @@ const AdminDashboard = () => {
       toast.error('Failed to load complaints');
     }
   }, [page, statusFilter]);
+
+
 
   const filteredComplaints = searchQuery
     ? allComplaints.filter((c) => {
@@ -256,7 +269,26 @@ const AdminDashboard = () => {
     }
   };
 
-  const formatDate = (d) => new Date(d).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+  const formatDate = (d) => {
+    if (!d) return '';
+    
+    let date;
+    if (d instanceof Date) {
+      date = d;
+    } else {
+      date = new Date(d);
+      if (isNaN(date.getTime())) {
+        let str = String(d).replace(' ', 'T');
+        str = str.replace(/\.(\d{3})\d+/, '.$1');
+        date = new Date(str);
+      }
+    }
+    
+    if (isNaN(date.getTime())) return 'INVALID DATE';
+    return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+
 
   if (loading) {
     return (
@@ -283,8 +315,8 @@ const AdminDashboard = () => {
   });
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
-      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '32px 16px' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-base)', color: 'var(--text-primary)', width: '100%', overflowX: 'hidden' }}>
+      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '32px 16px', boxSizing: 'border-box', width: '100%' }}>
 
         {/* ── Page Header ── */}
         <div style={{ marginBottom: '24px' }}>
@@ -314,7 +346,7 @@ const AdminDashboard = () => {
         {activeTab === 'overview' && stats && (
           <>
             {/* KPI Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
+            <div className="stat-grid" style={{ marginBottom: '24px' }}>
               <StatCard label="Total Cases"    value={stats.totalComplaints} topColor="var(--text-muted)" />
               <StatCard label="Pending"        value={stats.pendingCount}    topColor="var(--accent-pending)" />
               <StatCard label="In Progress"    value={stats.inProgressCount} topColor="var(--accent-progress)" />
@@ -326,31 +358,62 @@ const AdminDashboard = () => {
             </div>
 
             {/* Charts Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-              <ChartPanel title="CASES BY CATEGORY">
+            <div className="chart-grid-2" style={{ marginBottom: '16px' }}>
+              <ChartPanel title="DISTRIBUTION — BY CATEGORY">
                 <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={byCategory} margin={{ left: -20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
-                    <XAxis dataKey="name" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' }} angle={-20} textAnchor="end" height={50} />
-                    <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' }} />
-                    <Tooltip {...tooltipStyle} />
-                    <Bar dataKey="value" radius={[2, 2, 0, 0]}>
+                  <BarChart data={byCategory} margin={{ left: -20, right: 4 }}>
+                    <CartesianGrid strokeDasharray="2 4" stroke="var(--border-subtle)" strokeOpacity={0.6} vertical={false} />
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' }}
+                      axisLine={{ stroke: 'var(--border-strong)' }}
+                      tickLine={false}
+                      angle={-15}
+                      textAnchor="end"
+                      height={46}
+                    />
+                    <YAxis
+                      tick={{ fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      contentStyle={{ background: '#1c1f26', border: '1px solid #262932', borderRadius: '2px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: '#e8e9ed' }}
+                      itemStyle={{ color: '#8b8f99' }}
+                      labelStyle={{ color: '#555a66', fontSize: '11px', marginBottom: '4px' }}
+                      cursor={{ fill: 'rgba(77,142,255,0.06)' }}
+                    />
+                    <Bar dataKey="value" radius={[2, 2, 0, 0]} maxBarSize={40}>
                       {byCategory.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </ChartPanel>
 
-              <ChartPanel title="CASES BY PRIORITY">
+              <ChartPanel title="DISTRIBUTION — BY PRIORITY">
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
-                    <Pie data={byPriority} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      labelLine={{ stroke: 'var(--border-strong)' }}
+                    <Pie
+                      data={byPriority}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={76}
+                      innerRadius={32}
+                      paddingAngle={2}
+                      label={({ name, percent }) => `${name.toUpperCase()} ${(percent * 100).toFixed(0)}%`}
+                      labelLine={{ stroke: 'var(--border-strong)', strokeWidth: 1 }}
                     >
-                      {byPriority.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                      {byPriority.map((entry) => (
+                        <Cell key={entry.name} fill={getPriorityColor(entry.name)} />
+                      ))}
                     </Pie>
-                    <Tooltip {...tooltipStyle} />
+                    <Tooltip
+                      contentStyle={{ background: '#1c1f26', border: '1px solid #262932', borderRadius: '2px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: '#e8e9ed' }}
+                      itemStyle={{ color: '#8b8f99' }}
+                      labelStyle={{ color: '#555a66', fontSize: '11px' }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </ChartPanel>
@@ -648,71 +711,112 @@ const AdminDashboard = () => {
         )}
 
         {/* ────────────── USERS TAB ────────────── */}
-        {activeTab === 'users' && (
-          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                    {['NAME', 'EMAIL', 'ROLE', 'DEPARTMENT', 'STATUS', 'ACTIONS'].map((h) => (
-                      <th key={h} style={{ textAlign: 'left', fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', color: 'var(--text-muted)', padding: '10px 14px' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((u) => {
-                    const roleClass = { admin: 'stamp stamp-admin', staff: 'stamp stamp-staff', user: 'stamp stamp-user' };
-                    return (
-                      <tr
-                        key={u._id}
-                        style={{ borderBottom: '1px solid color-mix(in srgb, var(--border-subtle) 60%, transparent)', transition: 'background 0.1s' }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-elevated)'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                      >
-                        <td style={{ padding: '12px 14px', fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)' }}>{u.name}</td>
-                        <td style={{ padding: '12px 14px', fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-secondary)' }}>{u.email}</td>
-                        <td style={{ padding: '12px 14px' }}>
-                          <span className={roleClass[u.role] || 'stamp stamp-neutral'}>{u.role.toUpperCase()}</span>
-                        </td>
-                        <td style={{ padding: '12px 14px', fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)' }}>{u.department || '—'}</td>
-                        <td style={{ padding: '12px 14px' }}>
-                          <span className={u.isActive ? 'stamp stamp-resolved' : 'stamp stamp-neutral'}>
-                            {u.isActive ? 'ACTIVE' : 'INACTIVE'}
-                          </span>
-                        </td>
-                        <td style={{ padding: '12px 14px' }}>
-                          <button
-                            onClick={() => handleToggleUserActive(u._id, u.isActive)}
-                            style={{
-                              fontFamily: 'var(--font-mono)',
-                              fontSize: '10px',
-                              fontWeight: 600,
-                              letterSpacing: '0.04em',
-                              color: u.isActive ? 'var(--accent-rejected)' : 'var(--accent-resolved)',
-                              background: u.isActive ? 'color-mix(in srgb, var(--accent-rejected) 10%, transparent)' : 'color-mix(in srgb, var(--accent-resolved) 10%, transparent)',
-                              border: u.isActive ? '1px solid color-mix(in srgb, var(--accent-rejected) 30%, transparent)' : '1px solid color-mix(in srgb, var(--accent-resolved) 30%, transparent)',
-                              borderRadius: 'var(--radius-sm)',
-                              padding: '3px 10px',
-                              cursor: 'pointer',
-                              transition: 'all 0.12s',
-                            }}
-                          >
-                            {u.isActive ? 'DEACTIVATE' : 'ACTIVATE'}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              {users.length === 0 && (
-                <div style={{ padding: '48px', textAlign: 'center' }}>
-                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-muted)', letterSpacing: '0.08em' }}>NO USERS FOUND</p>
+        {activeTab === 'users' && (() => {
+          const filteredUsers = userSearch
+            ? users.filter((u) => {
+                const q = userSearch.toLowerCase();
+                return (
+                  u.name?.toLowerCase().includes(q) ||
+                  u.email?.toLowerCase().includes(q) ||
+                  u.department?.toLowerCase().includes(q) ||
+                  u.role?.toLowerCase().includes(q)
+                );
+              })
+            : users;
+          return (
+            <div>
+              {/* Users search bar */}
+              <div style={{ position: 'relative', marginBottom: '12px' }}>
+                <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                  </svg>
                 </div>
-              )}
+                <input
+                  type="text"
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  placeholder="Search by name, email, role, or department…"
+                  style={{ ...fieldStyle, paddingLeft: '36px', paddingRight: userSearch ? '36px' : '12px' }}
+                />
+                {userSearch && (
+                  <button
+                    onClick={() => setUserSearch('')}
+                    style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0 }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                )}
+              </div>
+
+              <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+                <div className="table-scroll">
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                        {['NAME', 'EMAIL', 'ROLE', 'DEPARTMENT', 'STATUS', 'ACTIONS'].map((h) => (
+                          <th key={h} style={{ textAlign: 'left', fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', color: 'var(--text-muted)', padding: '10px 14px', whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredUsers.map((u) => {
+                        const roleClass = { admin: 'stamp stamp-admin', staff: 'stamp stamp-staff', user: 'stamp stamp-user' };
+                        return (
+                          <tr
+                            key={u._id}
+                            style={{ borderBottom: '1px solid color-mix(in srgb, var(--border-subtle) 60%, transparent)', transition: 'background 0.1s' }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-elevated)'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                          >
+                            <td style={{ padding: '12px 14px', fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>{u.name}</td>
+                            <td style={{ padding: '12px 14px', fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{u.email}</td>
+                            <td style={{ padding: '12px 14px' }}>
+                              <span className={roleClass[u.role] || 'stamp stamp-neutral'}>{u.role.toUpperCase()}</span>
+                            </td>
+                            <td style={{ padding: '12px 14px', fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{u.department || '—'}</td>
+                            <td style={{ padding: '12px 14px' }}>
+                              <span className={u.isActive ? 'stamp stamp-resolved' : 'stamp stamp-neutral'}>
+                                {u.isActive ? 'ACTIVE' : 'INACTIVE'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px 14px' }}>
+                              <button
+                                onClick={() => handleToggleUserActive(u._id, u.isActive)}
+                                style={{
+                                  fontFamily: 'var(--font-mono)',
+                                  fontSize: '10px',
+                                  fontWeight: 600,
+                                  letterSpacing: '0.04em',
+                                  color: u.isActive ? 'var(--accent-rejected)' : 'var(--accent-resolved)',
+                                  background: u.isActive ? 'color-mix(in srgb, var(--accent-rejected) 10%, transparent)' : 'color-mix(in srgb, var(--accent-resolved) 10%, transparent)',
+                                  border: u.isActive ? '1px solid color-mix(in srgb, var(--accent-rejected) 30%, transparent)' : '1px solid color-mix(in srgb, var(--accent-resolved) 30%, transparent)',
+                                  borderRadius: 'var(--radius-sm)',
+                                  padding: '3px 10px',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.12s',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {u.isActive ? 'DEACTIVATE' : 'ACTIVATE'}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {filteredUsers.length === 0 && (
+                    <div style={{ padding: '48px', textAlign: 'center' }}>
+                      <p style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: '6px' }}>NO USERS FOUND</p>
+                      {userSearch && <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>No results for &ldquo;<span style={{ color: 'var(--text-primary)' }}>{userSearch}</span>&rdquo;</p>}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>

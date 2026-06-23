@@ -9,14 +9,16 @@ const getNotifications = async (req, res, next) => {
     const { page = 1, limit = 20 } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
 
-    const notifications = db.prepare(`
+    const { rows } = await db.query(`
       SELECT n.*, c.title AS complaintTitle, c.status AS complaintStatus
       FROM notifications n
       LEFT JOIN complaints c ON n.relatedComplaint = c.id
-      WHERE n.recipient = ?
+      WHERE n.recipient = $1
       ORDER BY n.createdAt DESC
-      LIMIT ? OFFSET ?
-    `).all(req.user.id, Number(limit), offset).map((n) => ({
+      LIMIT $2 OFFSET $3
+    `, [req.user.id, Number(limit), offset]);
+
+    const notifications = rows.map((n) => ({
       ...n,
       _id: n.id,
       isRead: Boolean(n.isRead),
@@ -25,13 +27,17 @@ const getNotifications = async (req, res, next) => {
         : null,
     }));
 
-    const unreadCount = db.prepare(
-      'SELECT COUNT(*) AS count FROM notifications WHERE recipient = ? AND isRead = 0'
-    ).get(req.user.id).count;
+    const { rows: unreadCountRows } = await db.query(
+      'SELECT COUNT(*) AS count FROM notifications WHERE recipient = $1 AND isRead = false',
+      [req.user.id]
+    );
+    const unreadCount = Number(unreadCountRows[0].count);
 
-    const total = db.prepare(
-      'SELECT COUNT(*) AS count FROM notifications WHERE recipient = ?'
-    ).get(req.user.id).count;
+    const { rows: totalRows } = await db.query(
+      'SELECT COUNT(*) AS count FROM notifications WHERE recipient = $1',
+      [req.user.id]
+    );
+    const total = Number(totalRows[0].count);
 
     return res.json({ success: true, total, unreadCount, page: Number(page), notifications });
   } catch (error) {
@@ -45,11 +51,12 @@ const getNotifications = async (req, res, next) => {
 // ─────────────────────────────────────────────
 const markAsRead = async (req, res, next) => {
   try {
-    const result = db.prepare(
-      'UPDATE notifications SET isRead = 1 WHERE id = ? AND recipient = ?'
-    ).run(req.params.id, req.user.id);
+    const result = await db.query(
+      'UPDATE notifications SET isRead = true WHERE id = $1 AND recipient = $2',
+      [req.params.id, req.user.id]
+    );
 
-    if (result.changes === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ success: false, message: 'Notification not found' });
     }
 
@@ -65,8 +72,10 @@ const markAsRead = async (req, res, next) => {
 // ─────────────────────────────────────────────
 const markAllAsRead = async (req, res, next) => {
   try {
-    db.prepare('UPDATE notifications SET isRead = 1 WHERE recipient = ? AND isRead = 0')
-      .run(req.user.id);
+    await db.query(
+      'UPDATE notifications SET isRead = true WHERE recipient = $1 AND isRead = false',
+      [req.user.id]
+    );
 
     return res.json({ success: true, message: 'All notifications marked as read' });
   } catch (error) {
@@ -80,11 +89,12 @@ const markAllAsRead = async (req, res, next) => {
 // ─────────────────────────────────────────────
 const deleteNotification = async (req, res, next) => {
   try {
-    const result = db.prepare(
-      'DELETE FROM notifications WHERE id = ? AND recipient = ?'
-    ).run(req.params.id, req.user.id);
+    const result = await db.query(
+      'DELETE FROM notifications WHERE id = $1 AND recipient = $2',
+      [req.params.id, req.user.id]
+    );
 
-    if (result.changes === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ success: false, message: 'Notification not found' });
     }
 
@@ -100,7 +110,7 @@ const deleteNotification = async (req, res, next) => {
 // ─────────────────────────────────────────────
 const clearAllNotifications = async (req, res, next) => {
   try {
-    db.prepare('DELETE FROM notifications WHERE recipient = ?').run(req.user.id);
+    await db.query('DELETE FROM notifications WHERE recipient = $1', [req.user.id]);
     return res.json({ success: true, message: 'All notifications cleared' });
   } catch (error) {
     next(error);

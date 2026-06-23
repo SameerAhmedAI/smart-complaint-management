@@ -21,7 +21,8 @@ const register = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Name, email, and password are required' });
     }
 
-    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+    const { rows: existingRows } = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+    const existing = existingRows[0];
     if (existing) {
       return res.status(409).json({ success: false, message: 'Email already registered' });
     }
@@ -34,24 +35,25 @@ const register = async (req, res, next) => {
     const hashedPassword = await bcrypt.hash(password, salt);
     const ts = now();
 
-    const result = db.prepare(`
+    const result = await db.query(`
       INSERT INTO users (name, email, password, role, department, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(name, email, hashedPassword, allowedRole, department || '', ts, ts);
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id
+    `, [name, email, hashedPassword, allowedRole, department || '', ts, ts]);
 
-    const userId = result.lastInsertRowid;
+    const userId = result.rows[0].id;
 
     // Welcome notification
-    db.prepare(`
+    await db.query(`
       INSERT INTO notifications (recipient, title, message, type, createdAt)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(
+      VALUES ($1, $2, $3, $4, $5)
+    `, [
       userId,
       'Welcome to Smart Complaint System!',
       `Hi ${name}, your account has been created. You can now submit and track complaints.`,
       'general',
       now()
-    );
+    ]);
 
     // Welcome email (non-blocking)
     sendEmail({
@@ -93,7 +95,8 @@ const login = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Email and password are required' });
     }
 
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    const { rows: userRows } = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+    const user = userRows[0];
     if (!user) {
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
@@ -107,7 +110,7 @@ const login = async (req, res, next) => {
     }
 
     // Update last login
-    db.prepare('UPDATE users SET lastLogin = ?, updatedAt = ? WHERE id = ?').run(now(), now(), user.id);
+    await db.query('UPDATE users SET lastLogin = $1, updatedAt = $2 WHERE id = $3', [now(), now(), user.id]);
 
     const token = generateToken(user.id);
 
@@ -134,9 +137,11 @@ const login = async (req, res, next) => {
 // ─────────────────────────────────────────────
 const getProfile = async (req, res, next) => {
   try {
-    const user = db.prepare(
-      'SELECT id, name, email, role, department, isActive, lastLogin, createdAt, updatedAt FROM users WHERE id = ?'
-    ).get(req.user.id);
+    const { rows } = await db.query(
+      'SELECT id, name, email, role, department, isActive, lastLogin, createdAt, updatedAt FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    const user = rows[0];
 
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
@@ -154,7 +159,8 @@ const updateProfile = async (req, res, next) => {
   try {
     const { name, department, password } = req.body;
 
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+    const { rows: userRows } = await db.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    const user = userRows[0];
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
     let newName = name || user.name;
@@ -169,9 +175,9 @@ const updateProfile = async (req, res, next) => {
       newPassword = await bcrypt.hash(password, salt);
     }
 
-    db.prepare(`
-      UPDATE users SET name = ?, department = ?, password = ?, updatedAt = ? WHERE id = ?
-    `).run(newName, newDept, newPassword, now(), user.id);
+    await db.query(`
+      UPDATE users SET name = $1, department = $2, password = $3, updatedAt = $4 WHERE id = $5
+    `, [newName, newDept, newPassword, now(), user.id]);
 
     return res.json({
       success: true,
@@ -189,9 +195,10 @@ const updateProfile = async (req, res, next) => {
 // ─────────────────────────────────────────────
 const getAllUsers = async (req, res, next) => {
   try {
-    const users = db.prepare(
+    const { rows } = await db.query(
       'SELECT id, name, email, role, department, isActive, lastLogin, createdAt, updatedAt FROM users ORDER BY createdAt DESC'
-    ).all().map((u) => ({ ...u, _id: u.id }));
+    );
+    const users = rows.map((u) => ({ ...u, _id: u.id }));
 
     return res.json({ success: true, count: users.length, users });
   } catch (error) {
@@ -206,21 +213,24 @@ const getAllUsers = async (req, res, next) => {
 const updateUser = async (req, res, next) => {
   try {
     const { role, department, isActive } = req.body;
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
+    const { rows: userRows } = await db.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
+    const user = userRows[0];
 
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
     const newRole = role || user.role;
     const newDept = department !== undefined ? department : user.department;
-    const newActive = isActive !== undefined ? (isActive ? 1 : 0) : user.isActive;
+    const newActive = isActive !== undefined ? !!isActive : user.isActive;
 
-    db.prepare(`
-      UPDATE users SET role = ?, department = ?, isActive = ?, updatedAt = ? WHERE id = ?
-    `).run(newRole, newDept, newActive, now(), user.id);
+    await db.query(`
+      UPDATE users SET role = $1, department = $2, isActive = $3, updatedAt = $4 WHERE id = $5
+    `, [newRole, newDept, newActive, now(), user.id]);
 
-    const updated = db.prepare(
-      'SELECT id, name, email, role, department, isActive, createdAt, updatedAt FROM users WHERE id = ?'
-    ).get(user.id);
+    const { rows: updatedRows } = await db.query(
+      'SELECT id, name, email, role, department, isActive, createdAt, updatedAt FROM users WHERE id = $1',
+      [user.id]
+    );
+    const updated = updatedRows[0];
 
     return res.json({ success: true, message: 'User updated', user: { ...updated, _id: updated.id } });
   } catch (error) {
@@ -234,9 +244,10 @@ const updateUser = async (req, res, next) => {
 // ─────────────────────────────────────────────
 const getStaffMembers = async (req, res, next) => {
   try {
-    const staff = db.prepare(
-      "SELECT id, name, email, department FROM users WHERE role = 'staff' AND isActive = 1"
-    ).all().map((s) => ({ ...s, _id: s.id }));
+    const { rows } = await db.query(
+      "SELECT id, name, email, department FROM users WHERE role = 'staff' AND isActive = true"
+    );
+    const staff = rows.map((s) => ({ ...s, _id: s.id }));
 
     return res.json({ success: true, staff });
   } catch (error) {
@@ -256,7 +267,8 @@ const createAdmin = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Name, email, and password are required' });
     }
 
-    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+    const { rows: existingRows } = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+    const existing = existingRows[0];
     if (existing) {
       return res.status(409).json({ success: false, message: 'Email already registered' });
     }
@@ -265,22 +277,23 @@ const createAdmin = async (req, res, next) => {
     const hashedPassword = await bcrypt.hash(password, salt);
     const ts = now();
 
-    const result = db.prepare(`
+    const result = await db.query(`
       INSERT INTO users (name, email, password, role, department, createdAt, updatedAt)
-      VALUES (?, ?, ?, 'admin', ?, ?, ?)
-    `).run(name, email, hashedPassword, department || '', ts, ts);
+      VALUES ($1, $2, $3, 'admin', $4, $5, $6)
+      RETURNING id
+    `, [name, email, hashedPassword, department || '', ts, ts]);
 
-    const userId = result.lastInsertRowid;
+    const userId = result.rows[0].id;
 
-    db.prepare(`
+    await db.query(`
       INSERT INTO notifications (recipient, title, message, type, createdAt)
-      VALUES (?, ?, ?, 'general', ?)
-    `).run(
+      VALUES ($1, $2, $3, 'general', $4)
+    `, [
       userId,
       'Admin Account Created',
       `Admin account for ${name} was created by ${req.user.name}.`,
       now()
-    );
+    ]);
 
     return res.status(201).json({
       success: true,

@@ -1,3 +1,10 @@
+// Helper to check if text contains a keyword as a whole word/phrase
+const hasWholeWord = (text, keyword) => {
+  const escapedKeyword = keyword.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+  const regex = new RegExp(`\\b${escapedKeyword}\\b`, 'i');
+  return regex.test(text);
+};
+
 // ─── Keyword-based fallback classifier ───────────────────────────────────────
 const keywordFallback = (title, description) => {
   const text = `${title} ${description}`.toLowerCase();
@@ -19,7 +26,7 @@ const keywordFallback = (title, description) => {
       department: 'Human Resources',
     },
     {
-      keywords: ['room', 'building', 'facility', 'lab', 'maintenance', 'cleaning', 'electricity', 'water', 'parking', 'elevator'],
+      keywords: ['room', 'building', 'facility', 'lab', 'maintenance', 'washroom', 'bathroom', 'toilet', 'clean', 'cleaning', 'hygiene', 'furniture', 'chair', 'desk', 'ac', 'air conditioning', 'electricity', 'plumbing', 'water', 'leak'],
       category: 'Facilities',
       department: 'Facilities Management',
     },
@@ -31,9 +38,9 @@ const keywordFallback = (title, description) => {
   ];
 
   for (const rule of rules) {
-    if (rule.keywords.some((kw) => text.includes(kw))) {
+    if (rule.keywords.some((kw) => hasWholeWord(text, kw))) {
       const urgentWords = ['urgent', 'critical', 'immediately', 'emergency', 'asap', 'severe', 'danger'];
-      const priority = urgentWords.some((w) => text.includes(w)) ? 'High' : 'Medium';
+      const priority = urgentWords.some((w) => hasWholeWord(text, w)) ? 'High' : 'Medium';
       return {
         category: rule.category,
         priority,

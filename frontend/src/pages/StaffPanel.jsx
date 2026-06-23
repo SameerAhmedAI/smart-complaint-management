@@ -148,8 +148,26 @@ const StaffPanel = () => {
     }
   };
 
-  const formatDate = (d) =>
-    new Date(d).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+  const formatDate = (d) => {
+    if (!d) return '';
+    
+    let date;
+    if (d instanceof Date) {
+      date = d;
+    } else {
+      date = new Date(d);
+      if (isNaN(date.getTime())) {
+        let str = String(d).replace(' ', 'T');
+        str = str.replace(/\.(\d{3})\d+/, '.$1');
+        date = new Date(str);
+      }
+    }
+    
+    if (isNaN(date.getTime())) return 'INVALID DATE';
+    return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+
 
   if (loading && !stats) {
     return (
@@ -161,8 +179,8 @@ const StaffPanel = () => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
-      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '32px 16px' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-base)', color: 'var(--text-primary)', width: '100%', overflowX: 'hidden' }}>
+      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '32px 16px', boxSizing: 'border-box', width: '100%' }}>
 
         {/* ── Page Header ── */}
         <div style={{ marginBottom: '28px' }}>
@@ -183,7 +201,7 @@ const StaffPanel = () => {
 
         {/* ── Stat Cards ── */}
         {stats && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
+          <div className="stat-grid" style={{ marginBottom: '20px' }}>
             <StatCard label="Total Assigned" value={stats.assignedTotal}      topColor="var(--text-muted)" />
             <StatCard label="Pending"        value={stats.assignedPending}    topColor="var(--accent-pending)" />
             <StatCard label="In Progress"    value={stats.assignedInProgress} topColor="var(--accent-progress)" />

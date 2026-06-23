@@ -74,50 +74,51 @@ const submitComplaint = async (req, res, next) => {
     const ai = await analyzeComplaint(title, description);
     const ts = now();
 
-    const result = db.prepare(`
+    const result = await db.query(`
       INSERT INTO complaints
         (title, description, category, priority, status,
          aiCategory, aiPriority, aiSuggestedDepartment, aiSentiment, aiSummary,
          submittedBy, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+      VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING id
+    `, [
       title, description, ai.category, ai.priority,
       ai.category, ai.priority, ai.suggestedDepartment, ai.sentiment, ai.summary,
       req.user.id, ts, ts
-    );
+    ]);
 
-    const complaintId = result.lastInsertRowid;
+    const complaintId = result.rows[0].id;
 
     // Notify submitter
-    db.prepare(`
+    await db.query(`
       INSERT INTO notifications (recipient, title, message, type, relatedComplaint, createdAt)
-      VALUES (?, ?, ?, 'complaint_submitted', ?, ?)
-    `).run(
+      VALUES ($1, $2, $3, 'complaint_submitted', $4, $5)
+    `, [
       req.user.id,
       'Complaint Submitted',
       `Your complaint "${title}" has been received. AI Category: ${ai.category} | Priority: ${ai.priority}`,
       complaintId, now()
-    );
+    ]);
 
     // Notify all admins
-    const admins = db.prepare("SELECT id FROM users WHERE role = 'admin' AND isActive = 1").all();
-    const insertNotif = db.prepare(`
-      INSERT INTO notifications (recipient, title, message, type, relatedComplaint, createdAt)
-      VALUES (?, ?, ?, 'complaint_submitted', ?, ?)
-    `);
+    const { rows: admins } = await db.query("SELECT id FROM users WHERE role = 'admin' AND isActive = true");
     for (const admin of admins) {
-      insertNotif.run(
+      await db.query(`
+        INSERT INTO notifications (recipient, title, message, type, relatedComplaint, createdAt)
+        VALUES ($1, $2, $3, 'complaint_submitted', $4, $5)
+      `, [
         admin.id,
         'New Complaint Submitted',
         `A new ${ai.priority} priority complaint "${title}" (${ai.category}) has been submitted.`,
         complaintId, now()
-      );
+      ]);
     }
 
     // Confirmation email
     sendComplaintConfirmation(req.user.email, req.user.name, title);
 
-    const complaint = db.prepare(COMPLAINT_JOIN + ' WHERE c.id = ?').get(complaintId);
+    const { rows: complaintRows } = await db.query(COMPLAINT_JOIN + ' WHERE c.id = $1', [complaintId]);
+    const complaint = complaintRows[0];
 
     return res.status(201).json({
       success: true,
@@ -138,23 +139,33 @@ const getUserComplaints = async (req, res, next) => {
     const { status, page = 1, limit = 10 } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
 
-    let where = 'WHERE c.submittedBy = ?';
+    let where = 'WHERE c.submittedBy = $1';
     const params = [req.user.id];
 
     if (status) {
-      where += ' AND c.status = ?';
+      where += ' AND c.status = $2';
       params.push(status);
     }
 
-    const complaints = db.prepare(
-      COMPLAINT_JOIN + where + ' ORDER BY c.createdAt DESC LIMIT ? OFFSET ?'
-    ).all(...params, Number(limit), offset).map(formatComplaint);
+    const limitParamIndex = params.length + 1;
+    const offsetParamIndex = params.length + 2;
+    params.push(Number(limit), offset);
 
-    const total = db.prepare(
-      `SELECT COUNT(*) as count FROM complaints WHERE submittedBy = ?${status ? ' AND status = ?' : ''}`
-    ).get(...(status ? [req.user.id, status] : [req.user.id])).count;
+    const { rows: complaints } = await db.query(
+      COMPLAINT_JOIN + where + ` ORDER BY c.createdAt DESC LIMIT $${limitParamIndex} OFFSET $${offsetParamIndex}`,
+      params
+    );
 
-    return res.json({ success: true, total, page: Number(page), complaints });
+    let countQuery = 'SELECT COUNT(*) as count FROM complaints WHERE submittedBy = $1';
+    const countParams = [req.user.id];
+    if (status) {
+      countQuery += ' AND status = $2';
+      countParams.push(status);
+    }
+    const { rows: countRows } = await db.query(countQuery, countParams);
+    const total = Number(countRows[0].count);
+
+    return res.json({ success: true, total, page: Number(page), complaints: complaints.map(formatComplaint) });
   } catch (error) {
     next(error);
   }
@@ -174,26 +185,45 @@ const getAllComplaints = async (req, res, next) => {
 
     // Staff only see their assigned complaints
     if (req.user.role === 'staff') {
-      where += ' AND c.assignedTo = ?';
       params.push(req.user.id);
+      where += ` AND c.assignedTo = $${params.length}`;
     }
-    if (status)   { where += ' AND c.status = ?';   params.push(status); }
-    if (category) { where += ' AND c.category = ?'; params.push(category); }
-    if (priority) { where += ' AND c.priority = ?'; params.push(priority); }
+    if (status)   {
+      params.push(status);
+      where += ` AND c.status = $${params.length}`;
+    }
+    if (category) {
+      params.push(category);
+      where += ` AND c.category = $${params.length}`;
+    }
+    if (priority) {
+      params.push(priority);
+      where += ` AND c.priority = $${params.length}`;
+    }
     if (search) {
-      where += ' AND (c.title LIKE ? OR c.description LIKE ?)';
-      params.push(`%${search}%`, `%${search}%`);
+      params.push(`%${search}%`);
+      where += ` AND (c.title LIKE $${params.length} OR c.description LIKE $${params.length})`;
     }
 
-    const complaints = db.prepare(
-      COMPLAINT_JOIN + where + ' ORDER BY c.createdAt DESC LIMIT ? OFFSET ?'
-    ).all(...params, Number(limit), offset).map(formatComplaint);
+    const countParams = [...params];
 
-    const countRow = db.prepare(
-      `SELECT COUNT(*) as count FROM complaints c ${where}`
-    ).get(...params);
+    params.push(Number(limit));
+    const limitIdx = params.length;
+    params.push(offset);
+    const offsetIdx = params.length;
 
-    return res.json({ success: true, total: countRow.count, page: Number(page), complaints });
+    const { rows: complaints } = await db.query(
+      COMPLAINT_JOIN + where + ` ORDER BY c.createdAt DESC LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+      params
+    );
+
+    const { rows: countRows } = await db.query(
+      `SELECT COUNT(*) as count FROM complaints c ${where}`,
+      countParams
+    );
+    const total = Number(countRows[0].count);
+
+    return res.json({ success: true, total, page: Number(page), complaints: complaints.map(formatComplaint) });
   } catch (error) {
     next(error);
   }
@@ -205,7 +235,8 @@ const getAllComplaints = async (req, res, next) => {
 // ─────────────────────────────────────────────
 const getComplaintById = async (req, res, next) => {
   try {
-    const row = db.prepare(COMPLAINT_JOIN + ' WHERE c.id = ?').get(req.params.id);
+    const { rows } = await db.query(COMPLAINT_JOIN + ' WHERE c.id = $1', [req.params.id]);
+    const row = rows[0];
 
     if (!row) return res.status(404).json({ success: false, message: 'Complaint not found' });
 
@@ -233,7 +264,8 @@ const updateComplaintStatus = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Invalid status value' });
     }
 
-    const complaint = db.prepare(COMPLAINT_JOIN + ' WHERE c.id = ?').get(req.params.id);
+    const { rows } = await db.query(COMPLAINT_JOIN + ' WHERE c.id = $1', [req.params.id]);
+    const complaint = rows[0];
     if (!complaint) return res.status(404).json({ success: false, message: 'Complaint not found' });
 
     // Staff can only update their assigned complaints
@@ -243,25 +275,26 @@ const updateComplaintStatus = async (req, res, next) => {
 
     const newResolution = resolution || complaint.resolutionNote;
 
-    db.prepare(`
-      UPDATE complaints SET status = ?, resolutionNote = ?, updatedAt = ? WHERE id = ?
-    `).run(status, newResolution, now(), complaint.id);
+    await db.query(`
+      UPDATE complaints SET status = $1, resolutionNote = $2, updatedAt = $3 WHERE id = $4
+    `, [status, newResolution, now(), complaint.id]);
 
     // Notify complaint owner
-    db.prepare(`
+    await db.query(`
       INSERT INTO notifications (recipient, title, message, type, relatedComplaint, createdAt)
-      VALUES (?, ?, ?, 'status_update', ?, ?)
-    `).run(
+      VALUES ($1, $2, $3, 'status_update', $4, $5)
+    `, [
       complaint.submittedBy,
       'Complaint Status Updated',
       `Your complaint "${complaint.title}" status is now: ${status.toUpperCase()}${newResolution ? '. Note: ' + newResolution : ''}`,
       complaint.id, now()
-    );
+    ]);
 
     // Send email to owner
     sendStatusUpdate(complaint.submittedByEmail, complaint.submittedByName, complaint.title, status);
 
-    const updated = db.prepare(COMPLAINT_JOIN + ' WHERE c.id = ?').get(complaint.id);
+    const { rows: updatedRows } = await db.query(COMPLAINT_JOIN + ' WHERE c.id = $1', [complaint.id]);
+    const updated = updatedRows[0];
     return res.json({ success: true, message: 'Status updated successfully', complaint: formatComplaint(updated) });
   } catch (error) {
     next(error);
@@ -277,43 +310,46 @@ const assignComplaint = async (req, res, next) => {
     const { staffId } = req.body;
     if (!staffId) return res.status(400).json({ success: false, message: 'Staff ID is required' });
 
-    const staff = db.prepare("SELECT * FROM users WHERE id = ? AND role = 'staff'").get(staffId);
+    const { rows: staffRows } = await db.query("SELECT * FROM users WHERE id = $1 AND role = 'staff'", [staffId]);
+    const staff = staffRows[0];
     if (!staff) return res.status(400).json({ success: false, message: 'Invalid staff member' });
 
-    const complaint = db.prepare(COMPLAINT_JOIN + ' WHERE c.id = ?').get(req.params.id);
+    const { rows: complaintRows } = await db.query(COMPLAINT_JOIN + ' WHERE c.id = $1', [req.params.id]);
+    const complaint = complaintRows[0];
     if (!complaint) return res.status(404).json({ success: false, message: 'Complaint not found' });
 
     const newStatus = complaint.status === 'pending' ? 'in-progress' : complaint.status;
 
-    db.prepare(`
-      UPDATE complaints SET assignedTo = ?, status = ?, updatedAt = ? WHERE id = ?
-    `).run(staffId, newStatus, now(), complaint.id);
+    await db.query(`
+      UPDATE complaints SET assignedTo = $1, status = $2, updatedAt = $3 WHERE id = $4
+    `, [staffId, newStatus, now(), complaint.id]);
 
     // Notify staff
-    db.prepare(`
+    await db.query(`
       INSERT INTO notifications (recipient, title, message, type, relatedComplaint, createdAt)
-      VALUES (?, ?, ?, 'assignment', ?, ?)
-    `).run(
+      VALUES ($1, $2, $3, 'assignment', $4, $5)
+    `, [
       staffId,
       'Complaint Assigned to You',
       `You have been assigned the complaint: "${complaint.title}"`,
       complaint.id, now()
-    );
+    ]);
 
     // Notify complaint owner
-    db.prepare(`
+    await db.query(`
       INSERT INTO notifications (recipient, title, message, type, relatedComplaint, createdAt)
-      VALUES (?, ?, ?, 'assignment', ?, ?)
-    `).run(
+      VALUES ($1, $2, $3, 'assignment', $4, $5)
+    `, [
       complaint.submittedBy,
       'Complaint Assigned',
       `Your complaint "${complaint.title}" has been assigned to ${staff.name} for resolution.`,
       complaint.id, now()
-    );
+    ]);
 
     sendAssignmentNotification(staff.email, staff.name, complaint.title);
 
-    const updated = db.prepare(COMPLAINT_JOIN + ' WHERE c.id = ?').get(complaint.id);
+    const { rows: updatedRows } = await db.query(COMPLAINT_JOIN + ' WHERE c.id = $1', [complaint.id]);
+    const updated = updatedRows[0];
     return res.json({ success: true, message: 'Complaint assigned successfully', complaint: formatComplaint(updated) });
   } catch (error) {
     next(error);
@@ -326,11 +362,12 @@ const assignComplaint = async (req, res, next) => {
 // ─────────────────────────────────────────────
 const deleteComplaint = async (req, res, next) => {
   try {
-    const complaint = db.prepare('SELECT id FROM complaints WHERE id = ?').get(req.params.id);
+    const { rows } = await db.query('SELECT id FROM complaints WHERE id = $1', [req.params.id]);
+    const complaint = rows[0];
     if (!complaint) return res.status(404).json({ success: false, message: 'Complaint not found' });
 
     // FK cascade handles related notifications automatically
-    db.prepare('DELETE FROM complaints WHERE id = ?').run(req.params.id);
+    await db.query('DELETE FROM complaints WHERE id = $1', [req.params.id]);
 
     return res.json({ success: true, message: 'Complaint deleted successfully' });
   } catch (error) {

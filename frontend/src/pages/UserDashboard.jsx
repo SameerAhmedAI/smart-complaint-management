@@ -93,8 +93,26 @@ const UserDashboard = () => {
     fetchData();
   };
 
-  const formatDate = (d) =>
-    new Date(d).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+  const formatDate = (d) => {
+    if (!d) return '';
+    
+    let date;
+    if (d instanceof Date) {
+      date = d;
+    } else {
+      date = new Date(d);
+      if (isNaN(date.getTime())) {
+        let str = String(d).replace(' ', 'T');
+        str = str.replace(/\.(\d{3})\d+/, '.$1');
+        date = new Date(str);
+      }
+    }
+    
+    if (isNaN(date.getTime())) return 'INVALID DATE';
+    return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+
 
   if (loading && !stats) {
     return (
@@ -107,13 +125,13 @@ const UserDashboard = () => {
   const filters = ['all', 'pending', 'in-progress', 'resolved', 'rejected'];
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
-      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '32px 16px' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-base)', color: 'var(--text-primary)', width: '100%', overflowX: 'hidden' }}>
+      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '32px 16px', boxSizing: 'border-box', width: '100%' }}>
 
         {/* ── Page Header ── */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '28px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '28px', flexWrap: 'wrap', gap: '12px' }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px', flexWrap: 'wrap' }}>
               <span style={{
                 fontFamily: 'var(--font-mono)',
                 fontSize: '10px',
@@ -129,6 +147,7 @@ const UserDashboard = () => {
                 fontSize: '10px',
                 color: 'var(--text-muted)',
                 letterSpacing: '0.06em',
+                wordBreak: 'break-all',
               }}>
                 {user?.email}
               </span>
@@ -164,6 +183,8 @@ const UserDashboard = () => {
               cursor: 'pointer',
               letterSpacing: '0.02em',
               transition: 'opacity 0.15s',
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
             }}
             onMouseEnter={(e) => e.currentTarget.style.opacity = '0.85'}
             onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
@@ -177,7 +198,7 @@ const UserDashboard = () => {
 
         {/* ── Stat Cards ── */}
         {stats && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '28px' }}>
+          <div className="stat-grid" style={{ marginBottom: '28px' }}>
             <StatCard label="Total Filed"   value={stats.userTotal}      topColor="var(--text-muted)" />
             <StatCard label="Pending"       value={stats.userPending}    topColor="var(--accent-pending)" />
             <StatCard label="In Progress"   value={stats.userInProgress} topColor="var(--accent-progress)" />
