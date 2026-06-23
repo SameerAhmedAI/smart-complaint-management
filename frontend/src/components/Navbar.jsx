@@ -69,7 +69,6 @@ const Navbar = () => {
       zIndex: 50,
       width: '100%',
       maxWidth: '100vw',
-      overflow: 'hidden',
       background: 'color-mix(in srgb, var(--bg-surface) 97%, transparent)',
       backdropFilter: 'blur(12px)',
       borderBottom: '1px solid var(--border-subtle)',
