@@ -2,10 +2,37 @@ import { useState } from 'react';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 
+/* ── Shared styles ───────────────────────────────────── */
+const inputBase = {
+  width: '100%',
+  background: 'var(--bg-elevated)',
+  border: '1px solid var(--border-strong)',
+  borderRadius: '2px',
+  padding: '10px 12px',
+  color: 'var(--text-primary)',
+  fontFamily: 'var(--font-body)',
+  fontSize: '13px',
+  outline: 'none',
+  transition: 'border-color 0.15s',
+  boxSizing: 'border-box',
+};
+
+const labelStyle = {
+  display: 'block',
+  fontFamily: 'var(--font-mono)',
+  fontSize: '10px',
+  fontWeight: 600,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+  color: 'var(--text-muted)',
+  marginBottom: '6px',
+};
+
 const ComplaintForm = ({ onSuccess, onClose }) => {
   const [form, setForm] = useState({ title: '', description: '' });
   const [loading, setLoading] = useState(false);
   const [charCount, setCharCount] = useState(0);
+  const [focusedField, setFocusedField] = useState(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -38,30 +65,73 @@ const ComplaintForm = ({ onSuccess, onClose }) => {
     }
   };
 
+  const focused = (name) => ({
+    ...inputBase,
+    borderColor: focusedField === name ? 'var(--accent-progress)' : 'var(--border-strong)',
+  });
+
   return (
-    <div className="bg-gray-900 rounded-2xl border border-gray-800 p-6 w-full max-w-2xl">
-      <div className="flex items-center justify-between mb-6">
+    <div style={{
+      background: 'var(--bg-surface)',
+      border: '1px solid var(--border-strong)',
+      borderTop: '4px solid var(--accent-progress)',
+      borderRadius: '4px',
+      padding: '24px',
+      width: '100%',
+      maxWidth: '640px',
+    }}>
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px' }}>
         <div>
-          <h2 className="text-xl font-semibold text-white">Submit a Complaint</h2>
-          <p className="text-gray-400 text-sm mt-0.5">AI will auto-categorize and prioritize your complaint</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <span style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '10px',
+              fontWeight: 600,
+              letterSpacing: '0.12em',
+              color: 'var(--text-muted)',
+              textTransform: 'uppercase',
+            }}>
+              NEW CASE SUBMISSION
+            </span>
+          </div>
+          <h2 style={{
+            fontFamily: 'var(--font-heading)',
+            fontWeight: 600,
+            fontSize: '18px',
+            color: 'var(--text-primary)',
+            margin: 0,
+          }}>
+            File a Complaint
+          </h2>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: '12px', color: 'var(--text-secondary)', marginTop: '3px' }}>
+            AI will auto-categorize and prioritize your submission
+          </p>
         </div>
         {onClose && (
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-white p-1.5 rounded-lg hover:bg-gray-800 transition-all"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              padding: '4px',
+              display: 'flex',
+            }}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {/* Title */}
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1.5">
-            Complaint Title <span className="text-red-400">*</span>
+          <label htmlFor="complaint-title" style={labelStyle}>
+            Case Title <span style={{ color: 'var(--accent-rejected)' }}>*</span>
           </label>
           <input
             id="complaint-title"
@@ -69,78 +139,139 @@ const ComplaintForm = ({ onSuccess, onClose }) => {
             type="text"
             value={form.title}
             onChange={handleChange}
-            placeholder="Brief summary of your complaint..."
+            onFocus={() => setFocusedField('title')}
+            onBlur={() => setFocusedField(null)}
+            placeholder="Brief summary of your complaint…"
             maxLength={200}
-            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm"
+            style={focused('title')}
           />
         </div>
 
         {/* Description */}
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1.5">
-            Description <span className="text-red-400">*</span>
+          <label htmlFor="complaint-description" style={labelStyle}>
+            Full Description <span style={{ color: 'var(--accent-rejected)' }}>*</span>
           </label>
           <textarea
             id="complaint-description"
             name="description"
             value={form.description}
             onChange={handleChange}
-            placeholder="Describe your complaint in detail. The more information you provide, the better our AI can categorize and prioritize it..."
+            onFocus={() => setFocusedField('description')}
+            onBlur={() => setFocusedField(null)}
+            placeholder="Describe your complaint in detail. The more information you provide, the better our AI can categorize and prioritize it…"
             rows={6}
             maxLength={3000}
-            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm resize-none"
+            style={{ ...focused('description'), resize: 'none' }}
           />
-          <div className="flex justify-between mt-1">
-            <p className="text-xs text-gray-500">Minimum 20 characters</p>
-            <p className={`text-xs ${charCount > 2800 ? 'text-red-400' : 'text-gray-500'}`}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
+              MIN. 20 CHARACTERS
+            </p>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: charCount > 2800 ? 'var(--accent-rejected)' : 'var(--text-muted)' }}>
               {charCount}/3000
             </p>
           </div>
         </div>
 
         {/* AI Notice */}
-        <div className="flex items-start gap-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3.5">
-          <svg className="w-5 h-5 text-indigo-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+        <div style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '10px',
+          background: 'color-mix(in srgb, var(--accent-progress) 8%, transparent)',
+          border: '1px solid color-mix(in srgb, var(--accent-progress) 25%, transparent)',
+          borderRadius: '2px',
+          padding: '10px 12px',
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-progress)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '1px' }}>
+            <path d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
-          <p className="text-indigo-300 text-xs leading-relaxed">
-            <strong>AI-Powered Analysis:</strong> Your complaint will be automatically categorized, prioritized, and routed to the correct department using Google Gemini AI.
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--accent-progress)', lineHeight: 1.5, letterSpacing: '0.04em' }}>
+            AI-POWERED ANALYSIS — Your complaint will be automatically categorized, prioritized, and routed to the correct department using Google Gemini AI.
           </p>
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3 pt-1">
+        <div style={{ display: 'flex', gap: '10px', paddingTop: '2px' }}>
           {onClose && (
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-700 text-gray-400 hover:text-white hover:border-gray-600 transition-all text-sm font-medium"
+              style={{
+                flex: 1,
+                padding: '10px',
+                borderRadius: '2px',
+                border: '1px solid var(--border-strong)',
+                background: 'transparent',
+                color: 'var(--text-secondary)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '11px',
+                fontWeight: 600,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                transition: 'border-color 0.15s',
+              }}
             >
-              Cancel
+              CANCEL
             </button>
           )}
           <button
             type="submit"
             disabled={loading}
             id="submit-complaint-btn"
-            className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-600/50 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-xl transition-all text-sm font-medium shadow-lg shadow-indigo-500/20"
+            style={{
+              flex: 1,
+              padding: '10px',
+              borderRadius: '2px',
+              border: 'none',
+              background: loading ? 'color-mix(in srgb, var(--accent-progress) 50%, transparent)' : 'var(--accent-progress)',
+              color: '#fff',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '11px',
+              fontWeight: 700,
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              transition: 'opacity 0.15s',
+            }}
           >
             {loading ? (
               <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Analyzing with AI...
+                <div style={{ width: 12, height: 12, border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                ANALYZING WITH AI…
               </>
             ) : (
               <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                 </svg>
-                Submit Complaint
+                SUBMIT CASE
               </>
             )}
           </button>
         </div>
       </form>
+
+      {/* Routing note */}
+      <p style={{
+        fontFamily: 'var(--font-mono)',
+        fontSize: '10px',
+        color: 'var(--text-muted)',
+        letterSpacing: '0.04em',
+        textAlign: 'center',
+        marginTop: '14px',
+        lineHeight: 1.5,
+      }}>
+        Your case will be auto-categorized and routed to the appropriate department
+      </p>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 };

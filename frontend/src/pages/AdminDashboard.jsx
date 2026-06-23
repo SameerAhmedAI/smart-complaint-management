@@ -447,13 +447,26 @@ const AdminDashboard = () => {
                     {selectedComplaint.description}
                   </p>
 
-                  {selectedComplaint.aiAnalysis?.summary && (
+                  {selectedComplaint.aiAnalysis && (
                     <div style={{ background: 'color-mix(in srgb, var(--accent-progress) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-progress) 25%, transparent)', borderRadius: 'var(--radius-md)', padding: '10px 12px', marginBottom: '16px' }}>
-                      <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--accent-progress)', letterSpacing: '0.08em', marginBottom: '4px' }}>◈ AI SUMMARY</p>
-                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>{selectedComplaint.aiAnalysis.summary}</p>
-                      <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--accent-progress)' }}>
-                        SUGGESTED DEPT → {selectedComplaint.aiAnalysis.suggestedDepartment}
-                      </p>
+                      <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--accent-progress)', letterSpacing: '0.08em', marginBottom: '8px', fontWeight: 600 }}>◈ AUTO-CLASSIFICATION RESULT</p>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px' }}>
+                        {selectedComplaint.aiAnalysis.category && (
+                          <p style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-secondary)', margin: 0 }}>
+                            <span style={{ color: 'var(--text-muted)' }}>CATEGORY </span>{selectedComplaint.aiAnalysis.category}
+                          </p>
+                        )}
+                        {selectedComplaint.aiAnalysis.suggestedDepartment && (
+                          <p style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-secondary)', margin: 0 }}>
+                            <span style={{ color: 'var(--text-muted)' }}>DEPT </span>{selectedComplaint.aiAnalysis.suggestedDepartment}
+                          </p>
+                        )}
+                        {selectedComplaint.aiAnalysis.sentiment && (
+                          <p style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-secondary)', margin: 0 }}>
+                            <span style={{ color: 'var(--text-muted)' }}>SENTIMENT </span>{selectedComplaint.aiAnalysis.sentiment}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   )}
 

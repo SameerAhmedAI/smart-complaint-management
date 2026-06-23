@@ -49,6 +49,18 @@ body {
   min-height: 100vh;
 }
 
+/* ── Autofill dark theme override ────────────────────── */
+/* Prevents browser autofill from injecting a white/yellow background */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0px 1000px #1c1f26 inset !important;
+  -webkit-text-fill-color: #e8e9ed !important;
+  caret-color: #e8e9ed !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
 /* ── Utility: Monospace data text ─────────────────────── */
 .font-mono  { font-family: var(--font-mono); }
 .font-head  { font-family: var(--font-heading); }

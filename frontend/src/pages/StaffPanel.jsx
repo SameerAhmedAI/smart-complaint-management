@@ -232,8 +232,8 @@ const StaffPanel = () => {
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                 <div>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                    {caseRef(selectedComplaint._id)}
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', letterSpacing: '0.06em' }}>
+                    {caseRef(selectedComplaint._id)} — UPDATE STATUS
                   </span>
                   <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: '17px', color: 'var(--text-primary)', margin: 0 }}>
                     {selectedComplaint.title}
@@ -267,13 +267,26 @@ const StaffPanel = () => {
                 {selectedComplaint.description}
               </p>
 
-              {selectedComplaint.aiAnalysis?.summary && (
+              {selectedComplaint.aiAnalysis && (
                 <div style={{ background: 'color-mix(in srgb, var(--accent-progress) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-progress) 25%, transparent)', borderRadius: 'var(--radius-md)', padding: '12px', marginBottom: '16px' }}>
-                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600, color: 'var(--accent-progress)', letterSpacing: '0.08em', marginBottom: '6px' }}>◈ AI SUMMARY</p>
-                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>{selectedComplaint.aiAnalysis.summary}</p>
-                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--accent-progress)' }}>
-                    DEPT → {selectedComplaint.aiAnalysis.suggestedDepartment} · SENTIMENT → {selectedComplaint.aiAnalysis.sentiment}
-                  </p>
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600, color: 'var(--accent-progress)', letterSpacing: '0.08em', marginBottom: '8px' }}>◈ AUTO-CLASSIFICATION RESULT</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px' }}>
+                    {selectedComplaint.aiAnalysis.category && (
+                      <p style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-secondary)', margin: 0 }}>
+                        <span style={{ color: 'var(--text-muted)' }}>CATEGORY </span>{selectedComplaint.aiAnalysis.category}
+                      </p>
+                    )}
+                    {selectedComplaint.aiAnalysis.suggestedDepartment && (
+                      <p style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-secondary)', margin: 0 }}>
+                        <span style={{ color: 'var(--text-muted)' }}>DEPT </span>{selectedComplaint.aiAnalysis.suggestedDepartment}
+                      </p>
+                    )}
+                    {selectedComplaint.aiAnalysis.sentiment && (
+                      <p style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-secondary)', margin: 0 }}>
+                        <span style={{ color: 'var(--text-muted)' }}>SENTIMENT </span>{selectedComplaint.aiAnalysis.sentiment}
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -345,12 +358,12 @@ const StaffPanel = () => {
                       padding: '9px',
                       borderRadius: 'var(--radius-md)',
                       border: 'none',
-                      background: updating ? 'color-mix(in srgb, var(--accent-progress) 50%, transparent)' : 'var(--accent-progress)',
+                      background: updating ? 'color-mix(in srgb, var(--accent-resolved) 50%, transparent)' : 'var(--accent-resolved)',
                       color: '#fff',
                       fontFamily: 'var(--font-mono)',
                       fontSize: '11px',
-                      fontWeight: 600,
-                      letterSpacing: '0.06em',
+                      fontWeight: 700,
+                      letterSpacing: '0.08em',
                       cursor: updating ? 'not-allowed' : 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -452,6 +465,9 @@ const StaffPanel = () => {
                 <span key={col} style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.1em', fontWeight: 600 }}>{col}</span>
               ))}
             </div>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--text-muted)', letterSpacing: '0.05em', padding: '4px 16px 2px', opacity: 0.6 }}>
+              Reference IDs are persistent record identifiers and may not be sequential.
+            </p>
 
             {filteredComplaints.map((c, idx) => (
               <div

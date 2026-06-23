@@ -3,6 +3,32 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
+/* ── Shared input/label styles ───────────────────────── */
+const inputBase = {
+  width: '100%',
+  background: 'var(--bg-elevated)',
+  border: '1px solid var(--border-strong)',
+  borderRadius: '2px',
+  padding: '10px 12px',
+  color: 'var(--text-primary)',
+  fontFamily: 'var(--font-body)',
+  fontSize: '13px',
+  outline: 'none',
+  transition: 'border-color 0.15s',
+  boxSizing: 'border-box',
+};
+
+const labelStyle = {
+  display: 'block',
+  fontFamily: 'var(--font-mono)',
+  fontSize: '10px',
+  fontWeight: 600,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+  color: 'var(--text-muted)',
+  marginBottom: '6px',
+};
+
 const Register = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -16,6 +42,7 @@ const Register = () => {
   });
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
+  const [focusedField, setFocusedField] = useState(null);
 
   const handleChange = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
@@ -53,31 +80,87 @@ const Register = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
-      {/* Background glow */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 right-1/4 w-80 h-80 bg-purple-600/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/3 left-1/4 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl" />
-      </div>
+  const focused = (name) => ({
+    ...inputBase,
+    borderColor: focusedField === name ? 'var(--accent-progress)' : 'var(--border-strong)',
+  });
 
-      <div className="w-full max-w-md relative">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 shadow-2xl shadow-purple-500/30 mb-4">
-            <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+  const pwMismatch = form.confirmPassword && form.password !== form.confirmPassword;
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: 'var(--bg-base)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '16px',
+    }}>
+      <div style={{ width: '100%', maxWidth: '440px' }}>
+
+        {/* ── System header ── */}
+        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 44,
+            height: 44,
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border-strong)',
+            borderRadius: '3px 3px 3px 0',
+            marginBottom: '14px',
+            position: 'relative',
+            overflow: 'hidden',
+          }}>
+            <span style={{ position: 'absolute', bottom: 0, left: 0, width: 8, height: 8, background: 'var(--bg-base)', clipPath: 'polygon(0 0, 0 100%, 100% 100%)' }} />
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-resolved)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-white">Create an account</h1>
-          <p className="text-gray-400 text-sm mt-1">Join Smart Complaint Management System</p>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '6px' }}>
+            <span style={{ width: 24, height: '1px', background: 'var(--border-strong)' }} />
+            <span style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '10px',
+              fontWeight: 600,
+              letterSpacing: '0.14em',
+              color: 'var(--text-muted)',
+              textTransform: 'uppercase',
+            }}>
+              NEW REGISTRATION
+            </span>
+            <span style={{ width: 24, height: '1px', background: 'var(--border-strong)' }} />
+          </div>
+
+          <h1 style={{
+            fontFamily: 'var(--font-heading)',
+            fontWeight: 700,
+            fontSize: '20px',
+            color: 'var(--text-primary)',
+            margin: 0,
+          }}>
+            Create Access Credentials
+          </h1>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+            CASETRACK — Complaint Management System
+          </p>
         </div>
 
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 shadow-2xl">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Name */}
+        {/* ── Form card ── */}
+        <div style={{
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: '4px',
+          padding: '28px',
+        }}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+            {/* Full Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                Full Name <span className="text-red-400">*</span>
+              <label htmlFor="reg-name" style={labelStyle}>
+                Full Name <span style={{ color: 'var(--accent-rejected)' }}>*</span>
               </label>
               <input
                 id="reg-name"
@@ -85,15 +168,17 @@ const Register = () => {
                 type="text"
                 value={form.name}
                 onChange={handleChange}
-                placeholder="John Doe"
-                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm"
+                onFocus={() => setFocusedField('name')}
+                onBlur={() => setFocusedField(null)}
+                placeholder="e.g. Sameer Ahmed"
+                style={focused('name')}
               />
             </div>
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                Email <span className="text-red-400">*</span>
+              <label htmlFor="reg-email" style={labelStyle}>
+                Email Address <span style={{ color: 'var(--accent-rejected)' }}>*</span>
               </label>
               <input
                 id="reg-email"
@@ -101,64 +186,72 @@ const Register = () => {
                 type="email"
                 value={form.email}
                 onChange={handleChange}
+                onFocus={() => setFocusedField('email')}
+                onBlur={() => setFocusedField(null)}
                 placeholder="you@example.com"
                 autoComplete="email"
-                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm"
+                style={focused('email')}
               />
             </div>
 
-            {/* Role + Department in a row */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Role + Department */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">Role</label>
+                <label htmlFor="reg-role" style={labelStyle}>Role</label>
                 <select
                   id="reg-role"
                   name="role"
                   value={form.role}
                   onChange={handleChange}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm appearance-none"
+                  onFocus={() => setFocusedField('role')}
+                  onBlur={() => setFocusedField(null)}
+                  style={{ ...focused('role'), appearance: 'none' }}
                 >
                   <option value="user">User</option>
                   <option value="staff">Staff</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">Department</label>
+                <label htmlFor="reg-department" style={labelStyle}>Department</label>
                 <input
                   id="reg-department"
                   name="department"
                   type="text"
                   value={form.department}
                   onChange={handleChange}
-                  placeholder="e.g., IT"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm"
+                  onFocus={() => setFocusedField('dept')}
+                  onBlur={() => setFocusedField(null)}
+                  placeholder="e.g. IT"
+                  style={focused('dept')}
                 />
               </div>
             </div>
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                Password <span className="text-red-400">*</span>
+              <label htmlFor="reg-password" style={labelStyle}>
+                Password <span style={{ color: 'var(--accent-rejected)' }}>*</span>
               </label>
-              <div className="relative">
+              <div style={{ position: 'relative' }}>
                 <input
                   id="reg-password"
                   name="password"
                   type={showPass ? 'text' : 'password'}
                   value={form.password}
                   onChange={handleChange}
+                  onFocus={() => setFocusedField('password')}
+                  onBlur={() => setFocusedField(null)}
                   placeholder="Min. 6 characters"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 pr-11 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm"
+                  style={{ ...focused('password'), paddingRight: '40px' }}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPass((p) => !p)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                  style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, display: 'flex' }}
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                   </svg>
                 </button>
               </div>
@@ -166,8 +259,8 @@ const Register = () => {
 
             {/* Confirm Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                Confirm Password <span className="text-red-400">*</span>
+              <label htmlFor="reg-confirm-password" style={labelStyle}>
+                Confirm Password <span style={{ color: 'var(--accent-rejected)' }}>*</span>
               </label>
               <input
                 id="reg-confirm-password"
@@ -175,15 +268,22 @@ const Register = () => {
                 type={showPass ? 'text' : 'password'}
                 value={form.confirmPassword}
                 onChange={handleChange}
+                onFocus={() => setFocusedField('confirm')}
+                onBlur={() => setFocusedField(null)}
                 placeholder="Repeat your password"
-                className={`w-full bg-gray-800 border rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-1 transition-all text-sm ${
-                  form.confirmPassword && form.password !== form.confirmPassword
-                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
-                    : 'border-gray-700 focus:border-indigo-500 focus:ring-indigo-500'
-                }`}
+                style={{
+                  ...inputBase,
+                  borderColor: pwMismatch
+                    ? 'var(--accent-rejected)'
+                    : focusedField === 'confirm'
+                    ? 'var(--accent-progress)'
+                    : 'var(--border-strong)',
+                }}
               />
-              {form.confirmPassword && form.password !== form.confirmPassword && (
-                <p className="text-red-400 text-xs mt-1">Passwords do not match</p>
+              {pwMismatch && (
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--accent-rejected)', marginTop: '4px', letterSpacing: '0.04em' }}>
+                  PASSWORDS DO NOT MATCH
+                </p>
               )}
             </div>
 
@@ -192,29 +292,51 @@ const Register = () => {
               type="submit"
               id="register-submit-btn"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-600/50 disabled:cursor-not-allowed text-white py-3 rounded-xl font-medium transition-all shadow-lg shadow-indigo-500/20 text-sm mt-2"
+              style={{
+                width: '100%',
+                padding: '11px',
+                borderRadius: '2px',
+                border: 'none',
+                background: loading ? 'color-mix(in srgb, var(--accent-resolved) 50%, transparent)' : 'var(--accent-resolved)',
+                color: '#fff',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '12px',
+                fontWeight: 700,
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                marginTop: '4px',
+                transition: 'opacity 0.15s',
+              }}
             >
               {loading ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Creating account...
+                  <div style={{ width: 12, height: 12, border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                  REGISTERING…
                 </>
-              ) : (
-                'Create Account'
-              )}
+              ) : 'CREATE ACCOUNT'}
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-gray-500 text-sm">
-              Already have an account?{' '}
-              <Link to="/login" className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
+          <div style={{ marginTop: '20px', textAlign: 'center' }}>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--text-muted)' }}>
+              Already registered?{' '}
+              <Link to="/login" style={{ color: 'var(--accent-progress)', textDecoration: 'none', fontWeight: 500 }}>
                 Sign in
               </Link>
             </p>
           </div>
         </div>
+
+        <p style={{ textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', marginTop: '20px', letterSpacing: '0.06em' }}>
+          CASETRACK · SMART COMPLAINT MANAGEMENT · SZABIST
+        </p>
       </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 };
